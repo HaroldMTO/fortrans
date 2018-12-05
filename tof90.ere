@@ -1,0 +1,28 @@
+s:\s*!+.*::g
+s:\s*&$:&:g
+
+s:^[cC]+\s*$::g
+s:^\s*\!+\s*$::g
+
+s: *([=,(+/*\-]) *:\1:g
+s: *\):):g
+s:\)([a-z]):) \1:g
+
+s:(if|where|while|case)\(:\1 (:g
+s:\)then:) then:g
+s:else(do|if|where):else \1:g
+s:end(do|if|where|select):end \1:g
+
+s: *(\.eq\.|==) *: == :g
+s: *(\.ne\.|/=) *: \/= :g
+s: *(\.le\.|<=) *: <= :g
+s: *(\.ge\.|>=) *: >= :g
+s: *(\.lt\.|<) *: < :g
+s: *(\.gt\.|>) *: > :g
+s: *\.(and|or|not)\. *:.\1.:g
+s: ([<>=]) += : \1= :g
+s/ *:: */ :: /g
+
+
+#s:do +(\w+) *= *:do \1=:g
+#s: */= *: /= :g
