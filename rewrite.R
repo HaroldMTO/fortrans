@@ -60,7 +60,7 @@ reindent = function(lignes)
 	lignes
 }
 
-lre = strsplit(readLines("%s/re_to90.txt",fortrans),":")
+lre = strsplit(readLines(sprintf("%s/re_to90.txt",fortrans)),":")
 lre = lre[! sapply(lre,function(x) length(x) == 0 || regexpr("^#",x[1]) > 0)]
 lre = lapply(lre,change)
 

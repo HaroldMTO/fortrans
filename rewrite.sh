@@ -23,7 +23,7 @@ Retour :
 Dépendances :
 	- logiciel R
 
-" | iconv -f LATIN1 -t ${LANG##*\.}
+"
 }
 
 ficin=""

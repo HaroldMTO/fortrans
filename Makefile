@@ -19,9 +19,10 @@ install:
 
 fortrans:
 	mkdir -p $P
-	cp -uv rewrite.R re_to90.txt $P
+	cp -uv re_to90.txt $P
+	sed -re "s:fortrans *=.+:fortrans = \"$P\":" rewrite.R > $P/rewrite.R
 
 $B/rewrite.sh: rewrite.sh
-	sed -re "s:fortrans=.+:fortrans=$P:" -e 's: --encoding=latin1::' rewrite.sh | \
+	sed -re "s:fortrans=.+:fortrans=$P:" rewrite.sh | \
 		iconv -f LATIN1 -t UTF8 > $B/rewrite.sh
 	chmod a+x $B/rewrite.sh
