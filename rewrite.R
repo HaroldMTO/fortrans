@@ -1,3 +1,5 @@
+fortrans = "~/util/fortrans"
+
 change = function(re)
 {
 	re[1] = gsub("\\[([^\\])*\\\\n","[\\1\n",re[1])
@@ -58,7 +60,7 @@ reindent = function(lignes)
 	lignes
 }
 
-lre = strsplit(readLines("~/util/f90/re_to90.txt"),":")
+lre = strsplit(readLines("%s/re_to90.txt",fortrans),":")
 lre = lre[! sapply(lre,function(x) length(x) == 0 || regexpr("^#",x[1]) > 0)]
 lre = lapply(lre,change)
 
