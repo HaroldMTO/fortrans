@@ -1,0 +1,26 @@
+MAKEFLAGS += --no-print-directory
+
+# ne pas mettre ~ pour P : il faut un chemin absolu
+P = $(HOME)/proc/pastis
+
+.PHONY: all install fortrans
+
+all:
+
+install:
+	! git status --porcelain 2>/dev/null | grep -qvE "^\?\? "
+	make fortrans
+	make $B/rewrite.sh
+	if git status >/dev/null 2>&1; then \
+		grep -q $(shell git log -1 --pretty=format:%h 2>/dev/null) $P/version || \
+			git log -1 --oneline >> $P/version; \
+	fi
+
+fortrans:
+	mkdir -p $P
+	cp -uv rewrite.R re_tof90.txt $P
+
+$B/rewrite.sh: rewrite.sh
+	sed -re "s:fortrans=.+:fortrans=$P:" -e 's: --encoding=latin1::' rewrite.sh | \
+		iconv -f LATIN1 -t UTF8 > $B/rewrite.sh
+	chmod a+x $B/rewrite.sh

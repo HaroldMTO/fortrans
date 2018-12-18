@@ -1,3 +1,0 @@
-s:^ {5}[*1-9a-z]::g
-#s:do [0-9]+:do:g
-#s:^[0-9]{1,5}(\s+)continue:\1end docont:g

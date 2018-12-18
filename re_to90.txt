@@ -1,8 +1,80 @@
-^\n{2,}:
-\n{2,}$:
+# conversion tab en espace pour utiliser ' ' au lieu de '\s'
+# car '\n' est dans '\s'
+\t: 
+
+# suppression espaces de fin de ligne
+ +(\n|$):\1
+
+# suppression espaces avant/après virgule (hors commentaires car supprimés)
+ *, *:,
+
+# concaténation des lignes continuées (partant d'une fin de ligne)
+ *&\n+[& ]*:
+
+# suppression commentaires Fortran 90 (ligne entière)
+(^|\n) *!+[^\n]*:
+
+# conversion 'double quote' des 'simple quote' (non vides, non imbriquees)
+#(\n[^']+)'([^\n]+)'([^']*):\1"\2"\3
+# conversion 'simple quote' des doubles 'simple quote' (apostrophe f77)
+#'':'
+# suppression signes commentaires Fortran 90 dans les chaines 'double quote'
+#(\n[^"]+)("[^\n]*)!+([^\n]*"[^\n"]*):\1\2\3
+# suppression signes commentaires Fortran 90 dans les chaines 'simple quote'
+#(\n[^']+)('[^\n]*)!+([^\n]*'[^\n']*):\1\2\3
+# dans sed : suppression commentaires Fortran 90 (fin de ligne)
+# *!+[^'"\n]*\n:\n
+# suppression d'espaces avant/après opérateurs maths et affectation
+ *([=,(+/*\-]) *:\1
+
+# gestion d'espaces avant/après parenthèses
+\( +:(
+ +\):)
+
+# gestion d'espaces entre parenthèse fermante et mot
+\) *(\w):) \1
+
+# conversion/espacement opérateurs binaires f77
+ *(\.eq\.|==) *: == 
+ *(\.ne\.|/=) *: \/= 
+ *(\.le\.|<=) *: <= 
+ *(\.ge\.|>=) *: >= 
+ *(\.lt\.|<) *: < 
+ *(\.gt\.|>) *: > 
+ *\.(and|or|not|xor)\. *:.\1.
+ ([<>=]) += : \1= 
+
+# espacement structures de controle
+\<do *(while|concurrent)?\>:do \1
+(\n *else) *(if|where)\>:\1 \2
+\<(if|where|while) *\(:\1 (
+
+# dans sed : espacement déclaration de type ('type(' = declaration variable)
+(\n *type) *\(:\1(
+(\n *type) *([^\(])/\1 \2
+
+# début d'unités de programme + interfaces et types
+(^|\n)\n*( *(module|function|subroutine|program|interface|type|associate)\>) +([^\n]+)\n+:\1\n\2 \4\n
+\n+(( *abstract)? *interface\>[^\n]*)\n+:\n\n\1\n
+\n+( *type +[^\n]+)\n+:\n\n\1\n
+
+# début et alternatives de structures de contrôle (pas where, trop complexe)
+(\n *if\>[^\n]+)\) *then\>\n+:\1) then\n
+(\n *(do|select)\>[^\n]*)\n+:\1\n
+\n+( *else\>[^\n]*)\n+:\n\1\n
+
+# lignes vides en fin de structures
+\n+( *end) *(do|if|where|select|module|function|subroutine|program|interface|type|associate)\>:\n\1 \2
+\n+( *end\>):\n\1
+
+# étiquettes structures 'do'
+(\n *do) +([0-9]{1,5}) +(.+ *)\2 +continue\>:\1 \3end do
+
+# suppression Dr Hook (use, call et variable z?hook_handle (pas les autres)
+\n[^\n]+\<(lhook|z?hook_handle)\>[^\n]+:
+
+# lignes vides multiples (début, fin et milieu de fichier)
+ {2,}: 
+^\n:
+\n+$:\n
 \n{3,}:\n\n
-&\n\s+&?:
-\n+(\s*end)\s+(module|function|subroutine|program|interface)(\s+(\w+))?\n\n+:\n\1 \2\3\n\n
-\n{2,}(\s*end (do|if|where|statement|case))\>\n{2,}:\n\1\n
-\) then\n{2,}:) then\n
-(\<(do|where) [^\n]+)\n{2,}:\1\n

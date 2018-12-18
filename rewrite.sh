@@ -1,20 +1,19 @@
 #!/bin/sh
 
-f90=~/util/f90
+fortrans=~/util/fortrans
 
 Usage()
 {
 	printf "
 Description :
-	Réécrire un fichier Fortran selon la norme HP
+	Réécrire un fichier Fortran 90 selon la norme HP
 
 Syntaxe :
-	$(basename $0) -i FICIN -o FICOUT [-F] [-h]
+	$(basename $0) -i FICIN -o FICOUT [-h]
 
 Arguments :
-	FICIN : fichier Fortran
+	FICIN : fichier Fortran 90
 	FICOUT : fichier FICIN mis à la norme HP
-	-F : convertir au format libre lorsque le fichier est au format fixe
 	-h : affiche cette aide et termine le programme
 
 Retour :
@@ -29,7 +28,6 @@ Dépendances :
 
 ficin=""
 ficout=""
-fixe=0
 help=0
 
 if [ $# -eq 0 ]
@@ -47,9 +45,6 @@ do
 		-o)
 			ficout=$2
 			shift
-			;;
-		-F)
-			fixe=1
 			;;
 		-h)
 			help=1
@@ -77,20 +72,13 @@ fi
 
 set -e
 
-tmp1=$(mktemp XXX.f90)
-tmp2=$(mktemp XXX.f90)
+tmp=$(echo $ficout | sed -re 's:\.([^.]+)$:.tmp.\1:')
+err=$(echo $ficout | sed -re 's:\.([^.]+)$:.err.\1:')
 
-iconv -f LATIN1 -t UTF8 $ficin > $tmp1
+echo "Conversion $ficin $ficout ($tmp)"
+iconv -f LATIN1 -t UTF8 $ficin | tr '[A-Z]' '[a-z]' > $tmp
 
-sed -rf $f90/tof90.ere $tmp1 > $tmp2
-if [ $fixe -eq 1 ]
-then
-	sed -rf $f90/tofree.ere $tmp2 > $tmp1
-else
-	cp $tmp2 $tmp1
-fi
+R --slave -f $fortrans/rewrite.R --args ficin=$tmp ficout=$ficout
 
-R --slave -f $f90/rewrite.R --args ficin=$tmp1 ficout=$ficout
-
-unlink $tmp1
-unlink $tmp2
+[ -s err ] && mv err $err || rm err
+rm $tmp
