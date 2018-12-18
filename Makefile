@@ -1,7 +1,8 @@
 MAKEFLAGS += --no-print-directory
 
 # ne pas mettre ~ pour P : il faut un chemin absolu
-P = $(HOME)/proc/pastis
+P = $(HOME)/proc/fortrans
+B = ~/bin
 
 .PHONY: all install fortrans
 
@@ -18,7 +19,7 @@ install:
 
 fortrans:
 	mkdir -p $P
-	cp -uv rewrite.R re_tof90.txt $P
+	cp -uv rewrite.R re_to90.txt $P
 
 $B/rewrite.sh: rewrite.sh
 	sed -re "s:fortrans=.+:fortrans=$P:" -e 's: --encoding=latin1::' rewrite.sh | \
