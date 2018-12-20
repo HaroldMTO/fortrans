@@ -80,5 +80,4 @@ iconv -f LATIN1 -t UTF8 $ficin | tr '[A-Z]' '[a-z]' > $tmp
 
 R --slave -f $fortrans/rewrite.R --args ficin=$tmp ficout=$ficout
 
-[ -s err ] && mv err $err || rm err
 rm $tmp

@@ -2,6 +2,10 @@
 # car '\n' est dans '\s'
 \t: 
 
+# suppression commentaires Fortran 90 (ligne entière, puis fin de ligne)
+(^|\n) *\!+[^\n]*:\1
+(^|\n)((\w|[ ()=.,;%+*/-])+)\!+[^\n]*:\1\2
+
 # suppression espaces de fin de ligne
  +(\n|$):\1
 
@@ -11,19 +15,6 @@
 # concaténation des lignes continuées (partant d'une fin de ligne)
  *&\n+[& ]*:
 
-# suppression commentaires Fortran 90 (ligne entière)
-(^|\n) *!+[^\n]*:
-
-# conversion 'double quote' des 'simple quote' (non vides, non imbriquees)
-#(\n[^']+)'([^\n]+)'([^']*):\1"\2"\3
-# conversion 'simple quote' des doubles 'simple quote' (apostrophe f77)
-#'':'
-# suppression signes commentaires Fortran 90 dans les chaines 'double quote'
-#(\n[^"]+)("[^\n]*)!+([^\n]*"[^\n"]*):\1\2\3
-# suppression signes commentaires Fortran 90 dans les chaines 'simple quote'
-#(\n[^']+)('[^\n]*)!+([^\n]*'[^\n']*):\1\2\3
-# dans sed : suppression commentaires Fortran 90 (fin de ligne)
-# *!+[^'"\n]*\n:\n
 # suppression d'espaces avant/après opérateurs maths et affectation
  *([=,(+/*\-]) *:\1
 
@@ -39,10 +30,10 @@
  *(\.ne\.|/=) *: \/= 
  *(\.le\.|<=) *: <= 
  *(\.ge\.|>=) *: >= 
- *(\.lt\.|<) *: < 
- *(\.gt\.|>) *: > 
+ *(\.lt\.) *: < 
+ *(\.gt\.) *: > 
+ *([<>/=]{2}) *: \1 
  *\.(and|or|not|xor)\. *:.\1.
- ([<>=]) += : \1= 
 
 # espacement structures de controle
 \<do *(while|concurrent)?\>:do \1
@@ -59,15 +50,15 @@
 \n+( *type +[^\n]+)\n+:\n\n\1\n
 
 # début et alternatives de structures de contrôle (pas where, trop complexe)
-(\n *if\>[^\n]+)\) *then\>\n+:\1) then\n
-(\n *(do|select)\>[^\n]*)\n+:\1\n
+(\n *(\w+;)? *if\>[^\n]+)\) *then\>\n+:\1) then\n
+(\n *(\w+;)? *(do|select)\>[^\n]*)\n+:\1\n
 \n+( *else\>[^\n]*)\n+:\n\1\n
 
 # lignes vides en fin de structures
 \n+( *end) *(do|if|where|select|module|function|subroutine|program|interface|type|associate)\>:\n\1 \2
 \n+( *end\>):\n\1
 
-# étiquettes structures 'do'
+# étiquettes structures 'do' Fortran 77
 (\n *do) +([0-9]{1,5}) +(.+ *)\2 +continue\>:\1 \3end do
 
 # suppression Dr Hook (use, call et variable z?hook_handle (pas les autres)
@@ -75,6 +66,6 @@
 
 # lignes vides multiples (début, fin et milieu de fichier)
  {2,}: 
-^\n:
+^\n+:
 \n+$:\n
 \n{3,}:\n\n

@@ -8,7 +8,7 @@ change = function(re)
 	re[2] = gsub("\\n","\n",re[2],fixed=TRUE)
 	re[2] = gsub("\\t","\t",re[2],fixed=TRUE)
 
-	re
+	gsub(";",":",re,fixed=TRUE)
 }
 
 reindent = function(lignes)
@@ -16,17 +16,16 @@ reindent = function(lignes)
 	# blocin et blocout dépendent de comm, blocin dépend de blocout
 	nul = "^$"
 	comm = "^ *!"
-	blocass = "^ *\\<end *associate\\>"
-	blocout = "^ *\\<end(if|where|do)?\\>"
-	mots = "\\<(program|module|subroutine|function|do|select)\\>"
-	blocif = "\\<if\\>.+\\<then\\>"
-	blocw = "^ *where\\>"
-	blocnw = "^ *where\\>.+[^=]=[^=]"
-	bloct = "\\<type *[^(]"
-	blocin = sprintf("^ *(%s)",paste(c(mots,blocif,bloct),collapse="|"))
+	blocass = "^ *end +associate\\>"
+	blocout = "^ *end\\>"
+	mots = "\\<(program|module|subroutine|function)\\>"
+	blocl = "(\\w+:)? *(do|where|select)\\>"
+	blocif = "(\\w+:)? *if\\>[^!]+\\<then\\>"
+	bloct = "type *[^(]"
+	blocin = sprintf("^ *(%s|%s)",mots,paste(c(blocl,blocif,bloct),collapse="|"))
+	blocnw = "^ *(\\w+:)? *where\\>[^!]+[^=]=[^=]"
 	alter = "^ *(else|contains)\\>"
 
-	out = file("err","w")
 	tab = 0
 
 	for (i in seq(along=lignes)) {
@@ -39,24 +38,17 @@ reindent = function(lignes)
 			if (tab > 0) tab = tab - 1
 			tabi = tab
 		} else if (regexpr(alter,lignes[i]) > 0) {
-			if (tab == 0) {
-				cat(i,":",lignes[i],"\n",file=out)
-			} else {
-				tabi = tab - 1
-			}
-		} else if (regexpr(blocin,lignes[i]) > 0 ||
-			(regexpr(blocw,lignes) > 0 && regexpr(blocnw,lignes[i]) < 0)) {
+			if (tab > 0) tabi = tab - 1
+		} else if (regexpr(blocin,lignes[i]) > 0 && regexpr(blocnw,lignes[i])<0) {
 			tabi = tab
 			tab = tab + 1
 		} else {
 			tabi = tab
 		}
 
-		stopifnot(tabi >= 0 && abs(tab-tabi) <= 1)
 		lignes[i] = gsub("^ *",paste(rep("\t",tabi),collapse=""),lignes[i])
 	}
 
-	close(out)
 	lignes
 }
 
