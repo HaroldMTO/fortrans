@@ -15,6 +15,7 @@ reindent = function(lignes)
 {
 	# blocin et blocout dépendent de comm, blocin dépend de blocout
 	nul = "^$"
+	inc = "^ *#[^#]+"
 	comm = "^ *!"
 	blocass = "^ *end +associate\\>"
 	blocout = "^ *end\\>"
@@ -31,6 +32,8 @@ reindent = function(lignes)
 	for (i in seq(along=lignes)) {
 		if (regexpr(nul,lignes[i]) > 0) {
 			next
+		} else if (regexpr(inc,lignes[i]) > 0) {
+			tabi = 0
 		} else if (regexpr(comm,lignes[i]) > 0) {
 			tabi = tab
 		} else if (regexpr(blocass,lignes[i]) < 0 &&
@@ -53,7 +56,7 @@ reindent = function(lignes)
 }
 
 lre = strsplit(readLines(sprintf("%s/re_to90.txt",fortrans)),":")
-lre = lre[! sapply(lre,function(x) length(x) == 0 || regexpr("^#",x[1]) > 0)]
+lre = lre[! sapply(lre,function(x) length(x) == 0 || regexpr("^ *#",x[1]) > 0)]
 lre = lapply(lre,change)
 
 if (interactive()) browser()
@@ -62,18 +65,41 @@ args = strsplit(commandArgs(trailingOnly=TRUE),split="=")
 cargs = lapply(args,function(x) strsplit(x[-1],split=":")[[1]])
 names(cargs) = sapply(args,function(x) x[1])
 
-flines = readLines(cargs$ficin)
-stopifnot(all(regexpr("\n",flines) < 0))
+# ficin : 1 ou plusieurs fichiers ou 1 repertoire
+ficin = cargs$ficin
+if (length(ficin) == 1 && file.info(ficin)$isdir)
+	ficin = dir(ficin,pattern="\\.(F|[fF]90)$",full.names=TRUE)
 
-texte = paste(flines,collapse="\n")
-texte2 = texte
-for (re in lre) texte2 = gsub(re[1],re[2],texte2,useBytes=TRUE)
+# ficout : 1 ou plusieurs fichiers (=#ficin) ou 1 repertoire
+ficout = cargs$ficout
+if (length(ficout) == 1 && file.exists(ficout) && file.info(cargs$ficout)$isdir)
+	ficout = gsub(cargs$ficin,cargs$ficout,ficin)
 
-flines2 = strsplit(texte2,"\n")[[1]]
-cat(". reindent",length(flines2),"lignes\n")
-flines3 = reindent(flines2)
+stopifnot(length(ficin) == length(ficout))
 
-cat(". writeLines",length(flines3),"lignes\n")
-texte3 = paste(flines3,collapse="\n")
-writeLines(texte3,cargs$ficout)
+nin = nout = 0
 
+for (i in seq(along=ficin)) {
+	cat(". conversion",ficin[i],"->",ficout[i],"\n")
+	flines = readLines(ficin[i])
+	flines = try(tolower(flines),silent=TRUE)
+	if (is(flines,"try-error")) {
+		flines = readLines(ficin[i],encoding="latin1")
+		flines = tolower(flines)
+	}
+
+	nin = nin + length(flines)
+
+	texte = paste(flines,collapse="\n")
+	texte2 = texte
+	for (re in lre) texte2 = gsub(re[1],re[2],texte2,useBytes=TRUE)
+
+	flines2 = strsplit(texte2,"\n")[[1]]
+	flines3 = reindent(flines2)
+
+	nout = nout + length(flines3)
+	texte3 = paste(flines3,collapse="\n")
+	writeLines(texte3,ficout[i])
+}
+
+cat("Lignes :",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")

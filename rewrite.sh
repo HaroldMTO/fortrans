@@ -70,14 +70,4 @@ ficout : '$ficout'
 	exit 1
 fi
 
-set -e
-
-tmp=$(echo $ficout | sed -re 's:\.([^.]+)$:.tmp.\1:')
-err=$(echo $ficout | sed -re 's:\.([^.]+)$:.err.\1:')
-
-echo "Conversion $ficin $ficout ($tmp)"
-iconv -f LATIN1 -t UTF8 $ficin | tr '[A-Z]' '[a-z]' > $tmp
-
-R --slave -f $fortrans/rewrite.R --args ficin=$tmp ficout=$ficout
-
-rm $tmp
+R --slave -f $fortrans/rewrite.R --args ficin=$ficin ficout=$ficout

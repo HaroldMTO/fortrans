@@ -6,6 +6,9 @@
 (^|\n) *\!+[^\n]*:\1
 (^|\n)((\w|[ ()=.,;%+*/-])+)\!+[^\n]*:\1\2
 
+# suppression include interface
+\n *#include +\"[^\n]*\.intfb\.h\":
+
 # suppression espaces de fin de ligne
  +(\n|$):\1
 
@@ -32,7 +35,7 @@
  *(\.ge\.|>=) *: >= 
  *(\.lt\.) *: < 
  *(\.gt\.) *: > 
- *([<>/=]{2}) *: \1 
+ *=> *:=>
  *\.(and|or|not|xor)\. *:.\1.
 
 # espacement structures de controle
