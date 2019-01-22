@@ -1,22 +1,23 @@
 ! program 'test'
 
 
-program   ttest ! 'toto'
+program   ttest ! 'toto' &
 
 	integer i_i,j,a(10),b(10)
-	character(len=20) :: s
+	character(len=20) :: s='il l''a, elle l''a, ils l''ont',s2="tt!"
 
 	print '("s:",x,a)',"set 's & s' !"
-	s = "! allo & 
-& la terre ?!"
+	s = ""! allo & 
+	s = "la terre ?!"
  
 a10:where(a==2) ! a=2
 a=1
-else
+elsewhere
 b=0
-endwhere
+endwhere a10
 
-	print "('p:',x,a)","print 's' !"
+	print "('p:',x,a)","affiche 's' &
+	!"
 
 do
 	do 12345 i_i=1,20,-1
@@ -33,10 +34,14 @@ do
 		endif
 
 12345 continue
+
 exit
-end
-	print "('',a,a,'')",s,'! ici la &
-		&lune!'
+end do
+	print *,s,'! ici la & ! comment
+      lune!'
+	print '(a," ",a)',s,'! ici la &
+      ! lune!&
+',s2
 	!! 
 !
  
@@ -46,7 +51,9 @@ contains
 subroutine f(x)
 
 integer x
-x=x+1
+x=&
+x+&
+&1
 
 endsubroutine
 

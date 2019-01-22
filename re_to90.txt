@@ -1,10 +1,16 @@
+# notes :
+# - dans toutes les RE, ';' est remplacé par ':' dans rewrite.R
+# - rewrite.R commence par concatener les chaines en supprimant les '!' (supprime comment en dépend)
+# - l'ordre des RE importe, du fait de dépendances
+# - RE dont les suivantes sont fortement dépendantes :
+#  . suppression des tabulations et espaces de fin de ligne
+#  . suppression des commentaires
+#  . concaténation des lignes continuées
+#  . espacement des structures de controle
+
 # conversion tab en espace pour utiliser ' ' au lieu de '\s'
 # car '\n' est dans '\s'
 \t: 
-
-# suppression commentaires Fortran 90 (ligne entière, puis fin de ligne)
-(^|\n) *\!+[^\n]*:\1
-(^|\n)((\w|[ ()=.,;%+*/-])+)\!+[^\n]*:\1\2
 
 # suppression include interface
 \n *#include +\"[^\n]*\.intfb\.h\":
@@ -12,23 +18,39 @@
 # suppression espaces de fin de ligne
  +(\n|$):\1
 
+# concaténation des chaines continuées (1 fois) apres ' ou "
+#(^|\n)(([^'"\n!]+|'([^'&\n]+|'')*'|"([^"]+|"")*")*'([^'&\n]+|'')*)&\n+(([^']+|'')*'):\1\2\7
+#(^|\n)(([^'"\n!]+|'([^']+|'')*'|"([^"&\n]+|"")*")*"([^"&\n]+|"")*)&\n+(([^"]+|"")*"):\1\2\7
+
+# suppression commentaires Fortran 90 (lignes entieres et ligne partielle, mais lignes vides non supprimées)
+(^|\n)( *!+\n+)+:\1\n
+(^|\n)( *!+[^\n]+\n*)+:\1
+(^|\n)([^\n&]+&?) *!+[^\n]*:\1\2
+
+# concaténation des lignes continuées (sur fin de ligne, avec ou sans commentaire de fin de ligne)
+&[ !]*[^\n]*\n+[& ]*:
+
 # suppression espaces avant/après virgule (hors commentaires car supprimés)
  *, *:,
-
-# concaténation des lignes continuées (partant d'une fin de ligne)
- *&\n+[& ]*:
 
 # suppression d'espaces avant/après opérateurs maths et affectation
  *([=,(+/*\-]) *:\1
 
-# gestion d'espaces avant/après parenthèses
+# reespacement affectations en instruction simple
+#(\n *([^\npp=]+|(\p([^\np=]+|\p[^\np=]+\p)+\p))+) *= *([^\n=]):\1 = \5
+(\n *([^\n()=]+|(\(([^\n(=]+|\([^\n(=]+\))+\)))+) *= *([^\n=]):\1 = \5
+
+# resuppression d'espaces sur indices boucles do
+(\n *(\w+;)? *do \w+) *= *:\1=
+
+# suppression d'espaces avant/après parenthèses
 \( +:(
  +\):)
 
-# gestion d'espaces entre parenthèse fermante et mot
+# espacement entre parenthèse fermante et mot
 \) *(\w):) \1
 
-# conversion/espacement opérateurs binaires f77
+# conversion/espacement opérateurs binaires f77 et association/déclaration f90
  *(\.eq\.|==) *: == 
  *(\.ne\.|/=) *: \/= 
  *(\.le\.|<=) *: <= 
@@ -36,6 +58,7 @@
  *(\.lt\.) *: < 
  *(\.gt\.) *: > 
  *=> *:=>
+  *;; *([^\n]): ;; \1
  *\.(and|or|not|xor)\. *:.\1.
 
 # espacement structures de controle
@@ -43,31 +66,30 @@
 (\n *else) *(if|where)\>:\1 \2
 \<(if|where|while) *\(:\1 (
 
-# dans sed : espacement déclaration de type ('type(' = declaration variable)
+# espacement déclaration de type ('type(' = declaration variable)
 (\n *type) *\(:\1(
-(\n *type) *([^\(])/\1 \2
+(\n *type) *([^(])/\1 \2
 
 # début d'unités de programme + interfaces et types
-(^|\n)\n*( *(module|function|subroutine|program|interface|type|associate)\>) +([^\n]+)\n+:\1\n\2 \4\n
-\n+(( *abstract)? *interface\>[^\n]*)\n+:\n\n\1\n
-\n+( *type +[^\n]+)\n+:\n\n\1\n
+(^|\n)\n*( *(program|module|subroutine|function|associate|(abstract)? *interface)\>) +([^\n]+)\n+:\1\n\2 \5\n
+\n+( *type\>[^(][^\n]+)\n+:\n\n\1\n
 
 # début et alternatives de structures de contrôle (pas where, trop complexe)
 (\n *(\w+;)? *if\>[^\n]+)\) *then\>\n+:\1) then\n
 (\n *(\w+;)? *(do|select)\>[^\n]*)\n+:\1\n
 \n+( *else\>[^\n]*)\n+:\n\1\n
 
-# lignes vides en fin de structures
+# suppression lignes vides en fin de structures et espacement 'end'
 \n+( *end) *(do|if|where|select|module|function|subroutine|program|interface|type|associate)\>:\n\1 \2
 \n+( *end\>):\n\1
 
-# étiquettes structures 'do' Fortran 77
+# suppression étiquettes structures 'do' Fortran 77
 (\n *do) +([0-9]{1,5}) +(.+ *)\2 +continue\>:\1 \3end do
 
 # suppression Dr Hook (use, call et variable z?hook_handle (pas les autres)
 \n[^\n]+\<(lhook|z?hook_handle)\>[^\n]+:
 
-# lignes vides multiples (début, fin et milieu de fichier)
+# suppression lignes vides multiples (début, fin et milieu de fichier)
  {2,}: 
 ^\n+:
 \n+$:\n

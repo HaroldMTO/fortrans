@@ -2,7 +2,7 @@ fortrans = "~/util/fortrans"
 
 change = function(re)
 {
-	re[1] = gsub("\\[([^\\])*\\\\n","[\\1\n",re[1])
+	re[1] = gsub("\\[([^\\]*)\\\\n([^\\]*)\\]","[\\1\n\\2]",re[1])
 
 	if (length(re) == 1) re[2] = ""
 	re[2] = gsub("\\n","\n",re[2],fixed=TRUE)
@@ -11,11 +11,73 @@ change = function(re)
 	gsub(";",":",re,fixed=TRUE)
 }
 
+stripbang = function(texte)
+{
+	tt = texte
+	n = 0
+
+	while (regexpr("(^|\n)([^'\"\n!&]+)('([^']+|'')*'|\"([^\"]+|\"\")*\")",tt) > 0) {
+		pos = regexec("(^|\n)([^'\"\n!&]+)('([^']+|'')*'|\"([^\"]+|\"\")*\")",tt)[[1]]
+		ind = pos[4] + attr(pos,"match.length")[4] - 1
+		s = substring(tt,pos[4],ind)
+		s1 = gsub("!","",gsub("&( *![^\n]*)*\n( *&)*","",s))
+
+		tt = substring(texte,n+ind+1)
+
+		if (n+pos[4] == 1) {
+			texte = sub(s,s1,texte)
+			n = nchar(s1)
+			next
+		}
+
+		deb = substring(texte,1,n+pos[4]-1)
+		texte = paste(deb,s1,tt,sep="")
+		n = nchar(deb) + nchar(s1)
+	}
+
+	texte
+}
+
+splitLine = function(s,ntab=1)
+{
+	# critère d'arrêt de la récursion
+	# les tab comptent pour 1 char, mais ils en font 3 de large (valeur fixe)
+	nt = nchar(sub("^(\t*).+","\\1",s))
+	if (nchar(s)+2*nt <= 80) return(s)
+
+	split = ","
+	l = strsplit(s,split)[[1]]
+	ind = which(cumsum(nchar(l)+nchar(split))+2*nt < 80)
+	if (length(ind) == 0) {
+		split = "\\.or\\."
+		l = strsplit(s,split)[[1]]
+		ind = which(cumsum(nchar(l)+nchar(split))+2*nt < 80)
+		if (length(ind) == 0) {
+			split = "\\.and\\."
+			l = strsplit(s,split)[[1]]
+			ind = which(cumsum(nchar(l)+nchar(split))+2*nt < 80)
+			if (length(ind) == 0) return(s)
+		}
+	}
+
+	s1 = sprintf("%s%s&\n",paste(l[ind],collapse=split),split)
+	s2 = sprintf("%s%s",paste(rep("\t",nt+ntab),collapse=""),
+		paste(l[-ind],collapse=split))
+	paste(s1,paste(splitLine(s2,ntab=0),sep=""),sep="")
+}
+
+resize = function(lignes)
+{
+	for (i in which(nchar(lignes) > 80)) lignes[i] = splitLine(lignes[i])
+
+	lignes
+}
+
 reindent = function(lignes)
 {
 	# blocin et blocout dÃ©pendent de comm, blocin dÃ©pend de blocout
 	nul = "^$"
-	inc = "^ *#[^#]+"
+	inc = "^ *(#[^#]+|[0-9]{1,5})"
 	comm = "^ *!"
 	blocass = "^ *end +associate\\>"
 	blocout = "^ *end\\>"
@@ -55,6 +117,15 @@ reindent = function(lignes)
 	lignes
 }
 
+squelette = function(lignes)
+{
+	sq = "^\\t*(end )?\\<(program|module|subroutine|function|call|select|case|do|if|where|else|contains)\\>"
+	#ind = rep(which(regexpr(sq,lignes) > 0),each=3) + seq(-1,1)
+	#ind = unique(sort(ind))
+	#lignes[ind[ind %in% seq(along=lignes)]]
+	lignes[regexpr(sq,lignes) > 0]
+}
+
 lre = strsplit(readLines(sprintf("%s/re_to90.txt",fortrans)),":")
 lre = lre[! sapply(lre,function(x) length(x) == 0 || regexpr("^ *#",x[1]) > 0)]
 lre = lapply(lre,change)
@@ -70,36 +141,62 @@ ficin = cargs$ficin
 if (length(ficin) == 1 && file.info(ficin)$isdir)
 	ficin = dir(ficin,pattern="\\.(F|[fF]90)$",full.names=TRUE)
 
-# ficout : 1 ou plusieurs fichiers (=#ficin) ou 1 repertoire
-ficout = cargs$ficout
-if (length(ficout) == 1 && file.exists(ficout) && file.info(cargs$ficout)$isdir)
-	ficout = gsub(cargs$ficin,cargs$ficout,ficin)
+if ("ficout" %in% names(cargs)) {
+	# ficout : 1 ou plusieurs fichiers (=#ficin) ou 1 repertoire
+	ficout = cargs$ficout
+	if (length(ficout) == 1 && file.exists(ficout) && file.info(cargs$ficout)$isdir)
+		ficout = gsub(cargs$ficin,cargs$ficout,ficin)
 
-stopifnot(length(ficin) == length(ficout))
+	stopifnot(length(ficin) == length(ficout))
 
-nin = nout = 0
+	nin = nout = 0
 
-for (i in seq(along=ficin)) {
-	cat(". conversion",ficin[i],"->",ficout[i],"\n")
-	flines = readLines(ficin[i])
-	flines = try(tolower(flines),silent=TRUE)
-	if (is(flines,"try-error")) {
-		flines = readLines(ficin[i],encoding="latin1")
-		flines = tolower(flines)
+	for (i in seq(along=ficin)) {
+		cat(". conversion",ficin[i],"->",ficout[i],"\n")
+		flines = readLines(ficin[i])
+		flines = try(tolower(flines),silent=TRUE)
+		if (is(flines,"try-error")) {
+			flines = readLines(ficin[i],encoding="latin1")
+			flines = tolower(flines)
+		}
+
+		nin = nin + length(flines)
+
+		texte = paste(flines,collapse="\n")
+		texte2 = stripbang(texte)
+		for (re in lre) texte2 = gsub(re[1],re[2],texte2,useBytes=TRUE)
+
+		flines2 = strsplit(texte2,"\n")[[1]]
+		flines3 = reindent(flines2)
+		flines4 = resize(flines3)
+
+		nout = nout + length(flines4)
+		texte3 = paste(flines4,collapse="\n")
+		writeLines(texte3,ficout[i])
 	}
 
-	nin = nin + length(flines)
+	cat("Lignes :",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
+} else {
+	ficin = ficin[basename(ficin) != "call.f90"]
+	ficsq = sprintf("%s/call.f90",dirname(ficin[1]))
 
-	texte = paste(flines,collapse="\n")
-	texte2 = texte
-	for (re in lre) texte2 = gsub(re[1],re[2],texte2,useBytes=TRUE)
+	nin = 0
 
-	flines2 = strsplit(texte2,"\n")[[1]]
-	flines3 = reindent(flines2)
+	fsq = character()
+	for (i in seq(along=ficin)) {
+		flines = readLines(ficin[i])
+		flines = try(tolower(flines),silent=TRUE)
+		if (is(flines,"try-error")) {
+			flines = readLines(ficin[i],encoding="latin1")
+			flines = tolower(flines)
+		}
 
-	nout = nout + length(flines3)
-	texte3 = paste(flines3,collapse="\n")
-	writeLines(texte3,ficout[i])
+		nin = nin + length(flines)
+
+		flines2 = squelette(flines)
+		fsq = c(fsq,"",flines2)
+	}
+
+	cat("Squelette",ficsq,length(fsq),"/",nin,"\n")
+	writeLines(fsq[-1],ficsq)
 }
-
-cat("Lignes :",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
