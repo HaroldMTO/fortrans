@@ -85,6 +85,10 @@ dirin : '$dirin'
 dirout : '$dirout'
 " >&2
 	exit 1
+elif [ ! -e $dirin ]
+then
+	echo "Erreur : '$dirin inexistant" >&2
+	exit 1
 fi
 
 set -e
@@ -94,21 +98,20 @@ dirout=$(echo $dirout | sed -re 's:/+$::')
 
 if [ -f $dirin ]
 then
-	echo $dirin > lst
-else
+	echo "Total $dirin : 1 fichier Fortran 90"
+	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout"
+elif [ -d $dirin ]
+then
 	find $dirin -name '*.[fF]90' > lst
 	find $dirin -name '*.F' >> lst
+	echo "Total $dirin : $(wc -l lst | awk '{print $1}') fichier(s) Fortran 90"
+	sed -re 's:(.+)/.+:\1:' lst | sort -u > lstdd
+
+	while read ddin
+	do
+		ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
+		R --slave -f $fortrans/rewrite.R --args ficin=$ddin ficout="$ddout"
+	done < lstdd
+
+	rm lst lstdd
 fi
-
-echo "Total $dirin : $(wc -l lst | awk '{print $1}') fichier(s) Fortran 90"
-sed -re 's:(.+)/.+:\1:' lst | sort -u > lstdd
-
-while read ddin
-do
-	ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
-	[ ! -e $ddout ] && mkdir -p $ddout
-
-	R --slave -f $fortrans/rewrite.R --args ficin=$ddin ficout="$ddout"
-done < lstdd
-
-rm lst lstdd

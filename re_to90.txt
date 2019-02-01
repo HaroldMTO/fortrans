@@ -1,6 +1,6 @@
 # notes :
 # - dans toutes les RE, ';' est remplacé par ':' dans rewrite.R
-# - rewrite.R commence par concatener les chaines en supprimant les '!' (supprime comment en dépend)
+# - rewrite.R commence par concaténer les chaines, en supprimant aussi les '!'
 # - l'ordre des RE importe, du fait de dépendances
 # - RE dont les suivantes sont fortement dépendantes :
 #  . suppression des tabulations et espaces de fin de ligne
@@ -18,17 +18,16 @@
 # suppression espaces de fin de ligne
  +(\n|$):\1
 
-# concaténation des chaines continuées (1 fois) apres ' ou "
-#(^|\n)(([^'"\n!]+|'([^'&\n]+|'')*'|"([^"]+|"")*")*'([^'&\n]+|'')*)&\n+(([^']+|'')*'):\1\2\7
-#(^|\n)(([^'"\n!]+|'([^']+|'')*'|"([^"&\n]+|"")*")*"([^"&\n]+|"")*)&\n+(([^"]+|"")*"):\1\2\7
-
-# suppression commentaires Fortran 90 (lignes entieres et ligne partielle, mais lignes vides non supprimées)
+# suppression commentaires Fortran 90 (lignes entieres, mais lignes vides non supprimées)
 (^|\n)( *!+\n+)+:\1\n
 (^|\n)( *!+[^\n]+\n*)+:\1
-(^|\n)([^\n&]+&?) *!+[^\n]*:\1\2
+
+# suppression commentaires Fortran 90 (fin de ligne)
+(^|\n)(( *[^\n& ]+)+&?) *!+[^\n]*:\1\2
 
 # concaténation des lignes continuées (sur fin de ligne, avec ou sans commentaire de fin de ligne)
-&[ !]*[^\n]*\n+[& ]*:
+&( *![^\n]*)*\n+( *&)*:
+\n {5}[1-9&*+]:
 
 # suppression espaces avant/après virgule (hors commentaires car supprimés)
  *, *:,
@@ -37,11 +36,11 @@
  *([=,(+/*\-]) *:\1
 
 # reespacement affectations en instruction simple
-#(\n *([^\npp=]+|(\p([^\np=]+|\p[^\np=]+\p)+\p))+) *= *([^\n=]):\1 = \5
-(\n *([^\n()=]+|(\(([^\n(=]+|\([^\n(=]+\))+\)))+) *= *([^\n=]):\1 = \5
+#(\n *[^\npp=]+(\p[^\npp=]+(\p[^\npp=]+\p)?\p)?) *= *([^\n=]):\1 = \4
+(\n *[^\n()=]+(\(([^\n()=]+|\([^\n()=]+\))+\))?) *= *([^\n=]):\1 = \4
 
-# resuppression d'espaces sur indices boucles do
-(\n *(\w+;)? *do \w+) *= *:\1=
+# resuppression d'espaces sur indices boucles do et déclarations
+(\n *(\d+ +|\w+ *; *)*do \w+) *= *:\1=
 
 # suppression d'espaces avant/après parenthèses
 \( +:(
@@ -59,38 +58,47 @@
  *(\.gt\.) *: > 
  *=> *:=>
   *;; *([^\n]): ;; \1
- *\.(and|or|not|xor)\. *:.\1.
+([^= ]+) *\.(and|or|not|xor)\. *:\1.\2.
 
 # espacement structures de controle
-\<do *(while|concurrent)?\>:do \1
+\<do *(while|concurrent)\>:do \1
 (\n *else) *(if|where)\>:\1 \2
 \<(if|where|while) *\(:\1 (
 
-# espacement déclaration de type ('type(' = declaration variable)
-(\n *type) *\(:\1(
-(\n *type) *([^(])/\1 \2
+# espacement déclaration de variables sur types simples avec kind, types dérivées et class ('type(' = declaration variable)
+(\n *(integer|real|double precision|character|complex|logical|type|class)) *\(:\1(
 
-# début d'unités de programme + interfaces et types
-(^|\n)\n*( *(program|module|subroutine|function|associate|(abstract)? *interface)\>) +([^\n]+)\n+:\1\n\2 \5\n
-\n+( *type\>[^(][^\n]+)\n+:\n\n\1\n
+# espacement déclaration de type dérivés
+\n+( *type\>[^(\n]+)\n+:\n\n\1\n
 
-# début et alternatives de structures de contrôle (pas where, trop complexe)
-(\n *(\w+;)? *if\>[^\n]+)\) *then\>\n+:\1) then\n
-(\n *(\w+;)? *(do|select)\>[^\n]*)\n+:\1\n
+# suppression parenthèses inutiles : entre comparaison et .and. (2 fois), entre double () et en affectation
+(\(|\.(and|x?or)\.)\(((\w+(\([^()"']+\))?|%| +|[/=<>]=|<|>|\.and\.|\.not\.)+)\)(\)|\.(and|x?or)\.):\1\3\6
+(\(|\.(and|x?or)\.)\(((\w+(\([^()"']+\))?|%| +|[/=<>]=|<|>|\.and\.|\.not\.)+)\)(\)|\.(and|x?or)\.):\1\3\6
+\((\([^()"']+\))\):\1
+(\n *(\w+(\([^()"']+\))?|%)+) *= *\(([^()"']+)\) *\n:\1 = \4\n
+
+# début d'unités de programme et interfaces + fonctions
+(^|\n)\n* *(program|module|associate|((pure|impure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+)\n+:\1\n\2 \6\n
+(^|\n)\n* *(((pure|impure|elemental|recursive|(integer|real|double precision|character|complex|logical|type|class)(\*\d+|\([^()]+\))?) +)*function)\> +([^\n]+)\n+:\1\n\2 \7\n
+
+# début et alternatives de structures de contrôle
+(\n *(\d+ +|\w+ *; *)*((do|select)\>[^\n]*|if\>[^\n]+\) *then\>|where\> *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n+:\1\n
 \n+( *else\>[^\n]*)\n+:\n\1\n
 
 # suppression lignes vides en fin de structures et espacement 'end'
 \n+( *end) *(do|if|where|select|module|function|subroutine|program|interface|type|associate)\>:\n\1 \2
-\n+( *end\>):\n\1
+\n+( *end)\>:\n\1
 
 # suppression étiquettes structures 'do' Fortran 77
-(\n *do) +([0-9]{1,5}) +(.+ *)\2 +continue\>:\1 \3end do
+(\n *(\d+ +|\w+ *; *)*do) +([0-9]{1,5}) +(.+ *)\2 +continue\>:\1 \4end do
 
 # suppression Dr Hook (use, call et variable z?hook_handle (pas les autres)
-\n[^\n]+\<(lhook|z?hook_handle)\>[^\n]+:
+\n+ *if *\(lhook\) *(then\n+ *)?call +dr_hook *\([^()]+\)[^\n]*(\n+ *end *if\>[^\n]*)?:
+
+# suppression espaces multiples
+ {2,}: 
 
 # suppression lignes vides multiples (début, fin et milieu de fichier)
- {2,}: 
 ^\n+:
 \n+$:\n
 \n{3,}:\n\n

@@ -13,14 +13,20 @@ change = function(re)
 
 stripbang = function(texte)
 {
+	strcontRE = "&([\t ]*![^\n]*)*\n+([\t ]*&)*"
+	stringRE = sprintf(
+		"(^|\n)([^'\"\n!&]+)('([^'&]+|''|%s)*'|\"([^\"&]+|\"\"|%s)*\")",strcontRE,
+		strcontRE)
 	tt = texte
 	n = 0
 
-	while (regexpr("(^|\n)([^'\"\n!&]+)('([^']+|'')*'|\"([^\"]+|\"\")*\")",tt) > 0) {
-		pos = regexec("(^|\n)([^'\"\n!&]+)('([^']+|'')*'|\"([^\"]+|\"\")*\")",tt)[[1]]
+	while (regexpr(stringRE,tt) > 0) {
+		pos = regexec(stringRE,tt)[[1]]
 		ind = pos[4] + attr(pos,"match.length")[4] - 1
 		s = substring(tt,pos[4],ind)
-		s1 = gsub("!","",gsub("&( *![^\n]*)*\n( *&)*","",s))
+
+		# fusion lignes continuées et suppression des '!'
+		s1 = gsub("!","",gsub(strcontRE,"",s))
 
 		tt = substring(texte,n+ind+1)
 
@@ -45,24 +51,38 @@ splitLine = function(s,ntab=1)
 	nt = nchar(sub("^(\t*).+","\\1",s))
 	if (nchar(s)+2*nt <= 80) return(s)
 
-	split = ","
-	l = strsplit(s,split)[[1]]
-	ind = which(cumsum(nchar(l)+nchar(split))+2*nt < 80)
-	if (length(ind) == 0) {
-		split = "\\.or\\."
-		l = strsplit(s,split)[[1]]
-		ind = which(cumsum(nchar(l)+nchar(split))+2*nt < 80)
-		if (length(ind) == 0) {
-			split = "\\.and\\."
-			l = strsplit(s,split)[[1]]
-			ind = which(cumsum(nchar(l)+nchar(split))+2*nt < 80)
-			if (length(ind) == 0) return(s)
-		}
+	if (regexpr("\\<if\\> *\\(.+\\) *\\<then\\>",s) > 0) {
+		splits = c(".or.",".and.",",")
+		resplits = c("\\.or\\.","\\.and\\.",",")
+	} else if (regexpr("\\<if\\> *\\(.+\\)",s) > 0) {
+		s = sub("(\\<if\\> *\\(.+\\)) +(\\.+)",
+			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+ntab),collapse="")),s)
+		return(s)
+	} else if (regexpr("(\\<where\\> +\\(.+\\)) +([^=]+=)",s) > 0) {
+		s = sub("(\\<where\\> +\\(.+\\)) +([^=]+=)",
+			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+ntab),collapse="")),s)
+		return(s)
+	} else if (regexpr("\\<(call \\w+|associate *\\()",s) > 0) {
+		splits = c("),",",")
+		resplits = c("\\),",",")
+	} else if (regexpr(" = ",s) > 0) {
+		splits = c("+","-")
+		resplits = c("\\+","-")
+	} else {
+		return(s)
 	}
 
-	s1 = sprintf("%s%s&\n",paste(l[ind],collapse=split),split)
+	for (i in seq(along=splits)) {
+		l = strsplit(s,resplits[i])[[1]]
+		ind = which(cumsum(nchar(l)+nchar(splits[i]))+2*nt < 80)
+		if (length(ind)) break
+	}
+
+	if (length(ind) == 0) return(s)
+
+	s1 = sprintf("%s%s&\n",paste(l[ind],collapse=splits[i]),splits[i])
 	s2 = sprintf("%s%s",paste(rep("\t",nt+ntab),collapse=""),
-		paste(l[-ind],collapse=split))
+		paste(l[-ind],collapse=splits[i]))
 	paste(s1,paste(splitLine(s2,ntab=0),sep=""),sep="")
 }
 
@@ -77,16 +97,17 @@ reindent = function(lignes)
 {
 	# blocin et blocout dÃ©pendent de comm, blocin dÃ©pend de blocout
 	nul = "^$"
-	inc = "^ *(#[^#]+|[0-9]{1,5})"
+	inc = "^ *#"
+	tag = "^ *[0-9]{1,5}"
 	comm = "^ *!"
+	mproc = "^ *\\<module +procedure\\> +"
 	blocass = "^ *end +associate\\>"
 	blocout = "^ *end\\>"
-	mots = "\\<(program|module|subroutine|function)\\>"
-	blocl = "(\\w+:)? *(do|where|select)\\>"
-	blocif = "(\\w+:)? *if\\>[^!]+\\<then\\>"
+	unit = "((pure|impure|elemental|recursive|abstract) +)*(program|module|subroutine|interface)\\>"
+	ftn = "((pure|impure|elemental|recursive|integer|real|double precision|character|complex|logical|type|class)(\\*\\d+|\\([[:alnum:]_=]+\\))? +)*function\\>"
+	bloc = "(\\d+ +|\\w+ *: *)*((do|select)\\>|if\\>[^!]+\\<then\\>|where\\> *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$)"
 	bloct = "type *[^(]"
-	blocin = sprintf("^ *(%s|%s)",mots,paste(c(blocl,blocif,bloct),collapse="|"))
-	blocnw = "^ *(\\w+:)? *where\\>[^!]+[^=]=[^=]"
+	blocin = sprintf("^ *(%s|%s|%s|%s)",unit,ftn,bloc,bloct)
 	alter = "^ *(else|contains)\\>"
 
 	tab = 0
@@ -96,17 +117,21 @@ reindent = function(lignes)
 			next
 		} else if (regexpr(inc,lignes[i]) > 0) {
 			tabi = 0
-		} else if (regexpr(comm,lignes[i]) > 0) {
+		} else if (regexpr(comm,lignes[i]) > 0 || regexpr(mproc,lignes[i]) > 0) {
 			tabi = tab
 		} else if (regexpr(blocass,lignes[i]) < 0 &&
 			regexpr(blocout,lignes[i]) > 0) {
+			if (tab == 0) warning("tab nul avant blocout :",lignes[i])
 			if (tab > 0) tab = tab - 1
 			tabi = tab
 		} else if (regexpr(alter,lignes[i]) > 0) {
+			if (tab == 0) warning("tab nul avant alter :",lignes[i])
 			if (tab > 0) tabi = tab - 1
-		} else if (regexpr(blocin,lignes[i]) > 0 && regexpr(blocnw,lignes[i])<0) {
+		} else if (regexpr(blocin,lignes[i]) > 0) {
 			tabi = tab
 			tab = tab + 1
+		} else if (regexpr(tag,lignes[i]) > 0) {
+			tabi = 0
 		} else {
 			tabi = tab
 		}
@@ -136,23 +161,29 @@ args = strsplit(commandArgs(trailingOnly=TRUE),split="=")
 cargs = lapply(args,function(x) strsplit(x[-1],split=":")[[1]])
 names(cargs) = sapply(args,function(x) x[1])
 
-# ficin : 1 ou plusieurs fichiers ou 1 repertoire
-ficin = cargs$ficin
-if (length(ficin) == 1 && file.info(ficin)$isdir)
-	ficin = dir(ficin,pattern="\\.(F|[fF]90)$",full.names=TRUE)
+# ficin doit exister
+if (file.info(cargs$ficin)$isdir) {
+	ficin = dir(cargs$ficin,pattern="\\.(F|[fF]90)$",full.names=TRUE)
+} else {
+	ficin = cargs$ficin
+}
 
 if ("ficout" %in% names(cargs)) {
-	# ficout : 1 ou plusieurs fichiers (=#ficin) ou 1 repertoire
-	ficout = cargs$ficout
-	if (length(ficout) == 1 && file.exists(ficout) && file.info(cargs$ficout)$isdir)
-		ficout = gsub(cargs$ficin,cargs$ficout,ficin)
+	# ficout : par défaut, est un répertoire
+	if (! file.exists(cargs$ficout)) dir.create(cargs$ficout,recursive=TRUE)
+
+	if (file.info(cargs$ficout)$isdir) {
+		ficout = paste(cargs$ficout,basename(ficin),sep="/")
+	} else {
+		ficout = rep(tempfile(fileext=".f90"),length(ficin))
+	}
 
 	stopifnot(length(ficin) == length(ficout))
 
 	nin = nout = 0
 
 	for (i in seq(along=ficin)) {
-		cat(". conversion",ficin[i],"->",ficout[i],"\n")
+		cat(". conversion",ficin[i],"\n")
 		flines = readLines(ficin[i])
 		flines = try(tolower(flines),silent=TRUE)
 		if (is(flines,"try-error")) {
@@ -173,6 +204,11 @@ if ("ficout" %in% names(cargs)) {
 		nout = nout + length(flines4)
 		texte3 = paste(flines4,collapse="\n")
 		writeLines(texte3,ficout[i])
+	}
+
+	if (! file.info(cargs$ficout)$isdir) {
+		invisible(file.remove(cargs$ficout))
+		invisible(file.append(cargs$ficout,ficout))
 	}
 
 	cat("Lignes :",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
