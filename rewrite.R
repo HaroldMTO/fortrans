@@ -2,6 +2,7 @@ fortrans = "~/util/fortrans"
 
 change = function(re)
 {
+	# remplace '\\n' par '\n' dans '[...]'
 	re[1] = gsub("\\[([^\\]*)\\\\n([^\\]*)\\]","[\\1\n\\2]",re[1])
 
 	if (length(re) == 1) re[2] = ""

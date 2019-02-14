@@ -20,13 +20,15 @@
 
 # suppression commentaires Fortran 90 (lignes entieres, mais lignes vides non supprimées)
 (^|\n)( *!+\n+)+:\1\n
-(^|\n)( *!+[^\n]+\n*)+:\1
+(^|\n)( *![^$d][^\n]+\n*)+:\1
+(^|\n)( *!$[^o][^\n]*\n*)+:\1
+(^|\n)( *!d[^ie][^\n]*\n*)+:\1
 
 # suppression commentaires Fortran 90 (fin de ligne)
 (^|\n)(( *[^\n& ]+)+&?) *!+[^\n]*:\1\2
 
-# concaténation des lignes continuées (sur fin de ligne, avec ou sans commentaire de fin de ligne)
-&( *![^\n]*)*\n+( *&)*:
+# concaténation des lignes continuées (sur fin de ligne, sauf directives CPP)
+&( *![^\n]*)*\n+ *(&|([^!])):\3
 \n {5}[1-9&*+]:
 
 # suppression espaces avant/après virgule (hors commentaires car supprimés)
@@ -36,8 +38,7 @@
  *([=,(+/*\-]) *:\1
 
 # reespacement affectations en instruction simple
-#(\n *[^\npp=]+(\p[^\npp=]+(\p[^\npp=]+\p)?\p)?) *= *([^\n=]):\1 = \4
-(\n *[^\n()=]+(\(([^\n()=]+|\([^\n()=]+\))+\))?) *= *([^\n=]):\1 = \4
+(\n *[^\n()=]+(\(([^\n()=]+|\([^\n()=]+\))+\))?) *= *([^\n=>]):\1 = \4
 
 # resuppression d'espaces sur indices boucles do et déclarations
 (\n *(\d+ +|\w+ *; *)*do \w+) *= *:\1=
