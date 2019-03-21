@@ -1,6 +1,5 @@
 #!/bin/sh
 
-
 fortrans=~/util/fortrans
 
 Usage()
@@ -8,14 +7,16 @@ Usage()
 	printf "
 Description :
 	Réécrire, selon la norme HP, des fichiers Fortran 90.
-	Les fichiers d'extension F, f90 et F90 sont traités.
+	Par défaut, les fichiers d'extension F, f90 et F90 sont traités car \
+considérés Fortran 90.
 
 Syntaxe :
-	$(basename $0) -i DIRIN -o DIROUT [-h]
+	$(basename $0) -i DIRIN -o DIROUT [-ext EXT] [-h]
 
 Arguments :
 	DIRIN : répertoire (ou fichier !) Fortran 90
 	DIROUT : répertoire de sortie, peuplé en miroir de DIRIN
+	EXT : extension de fichier Fortran
 	-h : affiche cette aide et termine le programme
 
 Détails :
@@ -33,6 +34,9 @@ fichier, le nouveau fichier sera produit dans DIROUT.
 	Si DIROUT est un fichier, le ou les fichiers de DIRIN seront produits \
 concaténés dans DIROUT.
 
+	Si une extension est fournie, elle sera traitée et remplace les formats \
+Fortran par défaut (alors non traités).
+
 Retour :
 	non nul en cas d'erreur
 	0 sinon
@@ -45,6 +49,7 @@ Dépendances :
 
 dirin=""
 dirout=""
+ext=""
 help=0
 
 if [ $# -eq 0 ]
@@ -61,6 +66,10 @@ do
 			;;
 		-o)
 			dirout=$2
+			shift
+			;;
+		-ext)
+			ext=$(echo $2 | sed -re 's:^\.::' -e 's:([^\])\.:\1\\.:g')
 			shift
 			;;
 		-h)
@@ -89,6 +98,10 @@ elif [ ! -e $dirin ]
 then
 	echo "Erreur : '$dirin inexistant" >&2
 	exit 1
+elif echo "$ext" | grep -qE "\s+."
+then
+	echo "Erreur : espaces dans l'extension (non valide)" >&2
+	exit 1
 fi
 
 set -e
@@ -102,16 +115,27 @@ then
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout"
 elif [ -d $dirin ]
 then
-	find $dirin -name '*.[fF]90' > lst
-	find $dirin -name '*.F' >> lst
-	echo "Total $dirin : $(wc -l lst | awk '{print $1}') fichier(s) Fortran 90"
-	sed -re 's:(.+)/.+:\1:' lst | sort -u > lstdd
+	tmp=$(mktemp lstXXX)
+	tmpdd=$(mktemp lstddXXX)
+
+	if [ -n "$ext" ]
+	then
+		find $dirin -type f -name \*.$ext > $tmp
+	else
+		find $dirin -type f -name \*.[fF]90 > $tmp
+		find $dirin -type f -name \*.F >> $tmp
+	fi
+
+	echo "Total $dirin : $(wc -l $tmp | awk '{print $1}') fichier(s) Fortran 90"
+	sed -re 's:(.+)/.+:\1:' $tmp | sort -u > $tmpdd
 
 	while read ddin
 	do
 		ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
-		R --slave -f $fortrans/rewrite.R --args ficin=$ddin ficout="$ddout"
-	done < lstdd
+		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
+			ext="$ext"
+	done < $tmpdd
 
-	rm lst lstdd
+	unlink $tmp
+	unlink $tmpdd
 fi

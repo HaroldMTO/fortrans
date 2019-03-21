@@ -164,7 +164,9 @@ names(cargs) = sapply(args,function(x) x[1])
 
 # ficin doit exister
 if (file.info(cargs$ficin)$isdir) {
-	ficin = dir(cargs$ficin,pattern="\\.(F|[fF]90)$",full.names=TRUE)
+	ext = "\\.(F|[fF]90)$"
+	if (nchar(cargs$ext)) ext = sprintf("\\.%s$",cargs$ext)
+	ficin = dir(cargs$ficin,pattern=ext,full.names=TRUE)
 } else {
 	ficin = cargs$ficin
 }
@@ -184,7 +186,6 @@ if ("ficout" %in% names(cargs)) {
 	nin = nout = 0
 
 	for (i in seq(along=ficin)) {
-		cat(". conversion",ficin[i],"\n")
 		flines = readLines(ficin[i])
 		flines = try(tolower(flines),silent=TRUE)
 		if (is(flines,"try-error")) {
