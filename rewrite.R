@@ -5,11 +5,16 @@ change = function(re)
 	# remplace '\\n' par '\n' dans '[...]'
 	re[1] = gsub("\\[([^\\]*)\\\\n([^\\]*)\\]","[\\1\n\\2]",re[1])
 
-	if (length(re) == 1) re[2] = ""
+	if (length(re) == 2) {
+		re[3] = "FALSE"
+	} else if (length(re) == 1) {
+		re = c(re,"","FALSE")
+	}
+
 	re[2] = gsub("\\n","\n",re[2],fixed=TRUE)
 	re[2] = gsub("\\t","\t",re[2],fixed=TRUE)
 
-	gsub(";",":",re,fixed=TRUE)
+	re
 }
 
 stripbang = function(texte)
@@ -59,18 +64,18 @@ splitLine = function(s,ntab=1)
 		s = sub("(\\<if\\> *\\(.+\\)) +(\\.+)",
 			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+ntab),collapse="")),s)
 		return(s)
-	} else if (regexpr("(\\<where\\> +\\(.+\\)) +([^=]+=)",s) > 0) {
-		s = sub("(\\<where\\> +\\(.+\\)) +([^=]+=)",
+	} else if (regexpr("(\\<where\\> +\\(.+\\)) +([^=]+=[^=])",s) > 0) {
+		s = sub("(\\<where\\> +\\(.+\\)) +([^=]+=[^=])",
 			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+ntab),collapse="")),s)
 		return(s)
-	} else if (regexpr("\\<(call \\w+|associate *\\()",s) > 0) {
+	} else if (regexpr(" = ",s) > 0) {
+		splits = c("+","-","*","/")
+		resplits = c("\\+","-","\\*","/")
+	} else if (regexpr(" :: ",s) > 0) {
+		return(s)
+	} else {
 		splits = c("),",",")
 		resplits = c("\\),",",")
-	} else if (regexpr(" = ",s) > 0) {
-		splits = c("+","-")
-		resplits = c("\\+","-")
-	} else {
-		return(s)
 	}
 
 	for (i in seq(along=splits)) {
@@ -152,19 +157,18 @@ squelette = function(lignes)
 	lignes[regexpr(sq,lignes) > 0]
 }
 
-lre = strsplit(readLines(sprintf("%s/re_to90.txt",fortrans)),":")
+lre = strsplit(readLines(sprintf("%s/re_to90.txt",fortrans)),";")
 lre = lre[! sapply(lre,function(x) length(x) == 0 || regexpr("^ *#",x[1]) > 0)]
 lre = lapply(lre,change)
 
 if (interactive()) browser()
 
 args = strsplit(commandArgs(trailingOnly=TRUE),split="=")
-cargs = lapply(args,function(x) strsplit(x[-1],split=":")[[1]])
+cargs = lapply(args,function(x) unlist(strsplit(x[-1],split=":")))
 names(cargs) = sapply(args,function(x) x[1])
 
 # ficin doit exister
 if (file.info(cargs$ficin)$isdir) {
-	ext = "\\.(F|[fF]90)$"
 	if (nchar(cargs$ext)) ext = sprintf("\\.%s$",cargs$ext)
 	ficin = dir(cargs$ficin,pattern=ext,full.names=TRUE)
 } else {
@@ -172,13 +176,13 @@ if (file.info(cargs$ficin)$isdir) {
 }
 
 if ("ficout" %in% names(cargs)) {
-	# ficout : par défaut, est un répertoire
-	if (! file.exists(cargs$ficout)) dir.create(cargs$ficout,recursive=TRUE)
-
-	if (file.info(cargs$ficout)$isdir) {
+	# ficout : par défaut, est un fichier
+	if (file.exists(cargs$ficout) && file.info(cargs$ficout)$isdir) {
 		ficout = paste(cargs$ficout,basename(ficin),sep="/")
-	} else {
+	} else if (length(ficin) > 1) {
 		ficout = rep(tempfile(fileext=".f90"),length(ficin))
+	} else {
+		ficout = cargs$ficout
 	}
 
 	stopifnot(length(ficin) == length(ficout))
@@ -197,7 +201,7 @@ if ("ficout" %in% names(cargs)) {
 
 		texte = paste(flines,collapse="\n")
 		texte2 = stripbang(texte)
-		for (re in lre) texte2 = gsub(re[1],re[2],texte2,useBytes=TRUE)
+		for (re in lre) texte2 = gsub(re[1],re[2],perl=re[3],texte2,useBytes=TRUE)
 
 		flines2 = strsplit(texte2,"\n")[[1]]
 		flines3 = reindent(flines2)
@@ -206,11 +210,6 @@ if ("ficout" %in% names(cargs)) {
 		nout = nout + length(flines4)
 		texte3 = paste(flines4,collapse="\n")
 		writeLines(texte3,ficout[i])
-	}
-
-	if (! file.info(cargs$ficout)$isdir) {
-		invisible(file.remove(cargs$ficout))
-		invisible(file.append(cargs$ficout,ficout))
 	}
 
 	cat("Lignes :",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")

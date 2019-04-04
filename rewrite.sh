@@ -124,6 +124,7 @@ then
 	else
 		find $dirin -type f -name \*.[fF]90 > $tmp
 		find $dirin -type f -name \*.F >> $tmp
+		ext="(F|[fF]90)"
 	fi
 
 	echo "Total $dirin : $(wc -l $tmp | awk '{print $1}') fichier(s) Fortran 90"
@@ -132,8 +133,9 @@ then
 	while read ddin
 	do
 		ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
+		mkdir -p $ddout
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
-			ext="$ext"
+			ext=$ext
 	done < $tmpdd
 
 	unlink $tmp
