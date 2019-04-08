@@ -115,8 +115,8 @@ then
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout"
 elif [ -d $dirin ]
 then
-	tmp=$(mktemp lstXXX)
-	tmpdd=$(mktemp lstddXXX)
+	tmp=$(mktemp --tmpdir=/tmp)
+	tmpdd=$(mktemp --tmpdir=/tmp)
 
 	if [ -n "$ext" ]
 	then
