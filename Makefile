@@ -19,7 +19,7 @@ install:
 
 fortrans:
 	mkdir -p $P
-	cp -uv re_to90.txt $P
+	cp -uv re_to90.txt rename.txt $P
 	sed -re "s:fortrans *=.+:fortrans = \"$P\":" rewrite.R > $P/rewrite.R
 
 $B/rewrite.sh: rewrite.sh

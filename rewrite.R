@@ -50,6 +50,27 @@ stripbang = function(texte)
 	texte
 }
 
+rename = function(texte)
+{
+	t = "(integer|real|double precision|character|complex|logical|type|class)"
+
+	vars = read.table(sprintf("%s/rename.txt",fortrans),header=TRUE)
+	decl = sprintf("\n *\\<%s\\>[^\n]*::[^\n]*\\<%s\\>",t,vars$old)
+	asso = sprintf("\n *associate\\([^\n]*\\<%s=>",vars$old)
+	used = sprintf("[^%%]\\<%s\\>",vars$used)
+	occ = sprintf("([^%%])\\<%s\\>",vars$old)
+	replace = sprintf("\\1%s",vars$new)
+
+	for (i in seq(dim(vars)[1])) {
+		if (regexpr(used[i],texte) > 0 || (regexpr(decl[i],texte) <= 0 &&
+			regexpr(asso[i],texte) <= 0)) next
+
+		texte = gsub(occ[i],replace[i],texte)
+	}
+
+	texte
+}
+
 splitLine = function(s,ntab=1)
 {
 	# critère d'arrêt de la récursion
@@ -203,16 +224,17 @@ if ("ficout" %in% names(cargs)) {
 		texte2 = stripbang(texte)
 		for (re in lre) texte2 = gsub(re[1],re[2],perl=re[3],texte2,useBytes=TRUE)
 
-		flines2 = strsplit(texte2,"\n")[[1]]
+		texte3 = rename(texte2)
+		flines2 = strsplit(texte3,"\n")[[1]]
 		flines3 = reindent(flines2)
 		flines4 = resize(flines3)
 
 		nout = nout + length(flines4)
-		texte3 = paste(flines4,collapse="\n")
-		writeLines(texte3,ficout[i])
+		texte4 = paste(flines4,collapse="\n")
+		writeLines(texte4,ficout[i])
 	}
 
-	cat("Lignes :",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
+	cat("Lignes",cargs$ficin,":",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
 } else {
 	ficin = ficin[basename(ficin) != "call.f90"]
 	ficsq = sprintf("%s/call.f90",dirname(ficin[1]))
@@ -234,6 +256,6 @@ if ("ficout" %in% names(cargs)) {
 		fsq = c(fsq,"",flines2)
 	}
 
-	cat("Squelette",ficsq,length(fsq),"/",nin,"\n")
+	cat("Squelette",dirname(ficin[1]),length(fsq),"/",nin,"\n")
 	writeLines(fsq[-1],ficsq)
 }
