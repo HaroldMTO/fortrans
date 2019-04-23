@@ -76,7 +76,7 @@ splitLine = function(s,ntab=1)
 	# critère d'arrêt de la récursion
 	# les tab comptent pour 1 char, mais ils en font 3 de large (valeur fixe)
 	nt = nchar(sub("^(\t*).+","\\1",s))
-	if (nchar(s)+2*nt <= 80) return(s)
+	if (nchar(s)+2*nt <= Gwidth) return(s)
 
 	if (regexpr("\\<if\\> *\\(.+\\) *\\<then\\>",s) > 0) {
 		splits = c(".or.",".and.",",")
@@ -101,7 +101,7 @@ splitLine = function(s,ntab=1)
 
 	for (i in seq(along=splits)) {
 		l = strsplit(s,resplits[i])[[1]]
-		ind = which(cumsum(nchar(l)+nchar(splits[i]))+2*nt < 80)
+		ind = which(cumsum(nchar(l)+nchar(splits[i]))+2*nt < Gwidth)
 		if (length(ind)) break
 	}
 
@@ -115,12 +115,12 @@ splitLine = function(s,ntab=1)
 
 resize = function(lignes)
 {
-	for (i in which(nchar(lignes) > 80)) lignes[i] = splitLine(lignes[i])
+	for (i in which(nchar(lignes) > Gwidth)) lignes[i] = splitLine(lignes[i])
 
 	lignes
 }
 
-reindent = function(lignes)
+reindent = function(lignes,file)
 {
 	# blocin et blocout dÃ©pendent de comm, blocin dÃ©pend de blocout
 	nul = "^$"
@@ -129,8 +129,8 @@ reindent = function(lignes)
 	comm = "^ *!"
 	mproc = "^ *\\<module +procedure\\> +"
 	blocass = "^ *end +associate\\>"
-	blocout = "^ *end\\>"
-	unit = "((pure|impure|elemental|recursive|abstract) +)*(program|module|subroutine|interface)\\>"
+	blocout = "^ *end( +\\w+|!|$)"
+	unit = "((pure|impure|elemental|recursive|abstract) +)*(program|(sub)?module|subroutine|interface)\\>"
 	ftn = "((pure|impure|elemental|recursive|integer|real|double precision|character|complex|logical|type|class)(\\*\\d+|\\([[:alnum:]_=]+\\))? +)*function\\>"
 	bloc = "(\\d+ +|\\w+ *: *)*((do|select)\\>|if\\>[^!]+\\<then\\>|where\\> *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$)"
 	bloct = "type *[^(]"
@@ -148,11 +148,11 @@ reindent = function(lignes)
 			tabi = tab
 		} else if (regexpr(blocass,lignes[i]) < 0 &&
 			regexpr(blocout,lignes[i]) > 0) {
-			if (tab == 0) warning("tab nul avant blocout :",lignes[i])
+			if (tab == 0) warning("tab nul avant blocout :",lignes[i]," ",file)
 			if (tab > 0) tab = tab - 1
 			tabi = tab
 		} else if (regexpr(alter,lignes[i]) > 0) {
-			if (tab == 0) warning("tab nul avant alter :",lignes[i])
+			if (tab == 0) warning("tab nul avant alter :",lignes[i]," ",file)
 			if (tab > 0) tabi = tab - 1
 		} else if (regexpr(blocin,lignes[i]) > 0) {
 			tabi = tab
@@ -187,6 +187,9 @@ if (interactive()) browser()
 args = strsplit(commandArgs(trailingOnly=TRUE),split="=")
 cargs = lapply(args,function(x) unlist(strsplit(x[-1],split=":")))
 names(cargs) = sapply(args,function(x) x[1])
+
+Gwidth = 90
+if ("width" %in% names(cargs)) Gwidth = as.integer(cargs$width)
 
 # ficin doit exister
 if (file.info(cargs$ficin)$isdir) {
@@ -226,7 +229,7 @@ if ("ficout" %in% names(cargs)) {
 
 		texte3 = rename(texte2)
 		flines2 = strsplit(texte3,"\n")[[1]]
-		flines3 = reindent(flines2)
+		flines3 = reindent(flines2,ficin[i])
 		flines4 = resize(flines3)
 
 		nout = nout + length(flines4)

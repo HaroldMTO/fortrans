@@ -11,12 +11,13 @@ Description :
 considérés Fortran 90.
 
 Syntaxe :
-	$(basename $0) -i DIRIN -o DIROUT [-ext EXT] [-h]
+	$(basename $0) -i DIRIN -o DIROUT [-ext EXT] [-width WIDTH] [-h]
 
 Arguments :
 	DIRIN : répertoire (ou fichier !) Fortran 90
 	DIROUT : répertoire de sortie, peuplé en miroir de DIRIN
 	EXT : extension de fichier Fortran
+	WIDTH : taille maximale des lignes Fortran en sortie (90 par défaut)
 	-h : affiche cette aide et termine le programme
 
 Détails :
@@ -50,6 +51,7 @@ Dépendances :
 dirin=""
 dirout=""
 ext=""
+width=90
 help=0
 
 if [ $# -eq 0 ]
@@ -70,6 +72,10 @@ do
 			;;
 		-ext)
 			ext=$(echo $2 | sed -re 's:^\.::' -e 's:([^\])\.:\1\\.:g')
+			shift
+			;;
+		-width)
+			width=$2
 			shift
 			;;
 		-h)
@@ -112,7 +118,8 @@ dirout=$(echo $dirout | sed -re 's:/+$::')
 if [ -f $dirin ]
 then
 	echo "Total $dirin : 1 fichier Fortran 90"
-	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout"
+	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout" \
+		width=$width
 elif [ -d $dirin ]
 then
 	tmp=$(mktemp --tmpdir=/tmp)
@@ -135,7 +142,7 @@ then
 		ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
 		mkdir -p $ddout
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
-			ext=$ext
+			ext=$ext width=$width
 	done < $tmpdd
 
 	unlink $tmp

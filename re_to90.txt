@@ -21,13 +21,13 @@
 
 # suppression commentaires Fortran 90 (lignes entieres non vides)
 (^|\n)( *!+\n+)+;\1\n
-(^|\n)( *!(?! *(dir\$|\$omp))[^\n]+\n*)+;\1;TRUE
+(^|\n)( *!(?! *((dec|dir|pgi)\$|\$omp))[^\n]+\n*)+;\1;TRUE
 
 # suppression commentaires Fortran 90 (fin de ligne)
 (^|\n)(( *[^\n! ]+)+) *!+[^\n]*;\1\2
 
-# concaténation des lignes continuées (sur fin de ligne, sauf directives CPP)
-&( *![^\n]*)*\n+ *(&|([^!]));\3
+# concaténation des lignes continuées (sur fin de ligne)
+&( *![^\n]*)?\n+ *(& *|(?!! *((dec|dir|pgi)\$|\$omp)));\3;TRUE
 \n {5}[1-9&*+];
 
 # suppression espaces avant/après virgule (hors commentaires car supprimés)
@@ -79,16 +79,16 @@
 (\n *(\w+(\([^()"']+\))?|%)+) *= *\(([^()"']+)\) *\n;\1 = \4\n
 
 # début d'unités de programme et interfaces + fonctions
-(^|\n)\n* *(program|module|associate|((pure|impure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+)\n+;\1\n\2 \6\n
+(^|\n)\n* *(program|(sub)?module|associate|((pure|impure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+)\n+;\1\n\2 \6\n
 (^|\n)\n* *(((pure|impure|elemental|recursive|(integer|real|double precision|character|complex|logical|type|class)(\*\d+|\([^()]+\))?) +)*function)\> +([^\n]+)\n+;\1\n\2 \7\n
 
 # début et alternatives de structures de contrôle
 (\n *(\d+ +|\w+ *: *)*((do|select)\>[^\n]*|if\>[^\n]+\) *then\>|where\> *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n+;\1\n
-\n+( *else\>[^\n]*)\n+;\n\1\n
+\n+( *(else|contains)\>[^\n]*)\n+;\n\1\n
 
 # suppression lignes vides en fin de structures et espacement 'end'
-\n+( *end) *(do|if|where|select|module|function|subroutine|program|interface|type|associate)\>;\n\1 \2
-\n+( *end)\>;\n\1
+\n+( *end) *(do|if|where|select|(sub)?module|function|subroutine|program|interface|type|associate)\>;\n\1 \2
+\n+( *(end|contains))\>;\n\1
 
 # suppression étiquettes structures 'do' Fortran 77
 (\n *(\d+ +|\w+ *: *)*do) +([0-9]{1,5}) +(.+ *)\2 +continue\>;\1 \4end do

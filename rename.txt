@@ -15,6 +15,7 @@ ydsurf							surf			surf
 ydvarbc							vbc			vbc
 ydtraj							trj			trj
 yd([cg])sgeom					\2sgeo		[cg]sgeo	
+yt([lr])scaw					\2scaw		[lr]scaw
 yddimv							dimv			dimv
 yddim								dimg			dimg
 #yd(\w+)							\2				??
