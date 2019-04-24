@@ -1,6 +1,6 @@
 #!/bin/sh
 
-mitra=~/util/fortrans
+fortrans=~/util/fortrans
 
 usage()
 {
@@ -47,5 +47,4 @@ then
 fi
 
 echo "$*" | grep -qE ' -move' && move=TRUE || move=FALSE
-R --encoding="latin1" --slave -f $mitra/namdiff.R --args ficold=$1 ficnew=$2 \
-	move=$move
+R --slave -f $fortrans/namdiff.R --args ficold=$1 ficnew=$2 move=$move
