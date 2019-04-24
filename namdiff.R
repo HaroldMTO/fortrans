@@ -34,17 +34,19 @@ if (any(! nomsold %in% nomsnew)) {
 snam = sprintf("&%s",nomsnew)
 
 if (as.logical(cargs$move)) {
-	for (i in which(! is.na(ind))) {
+	# variables to move in new blocks
+	for (i in seq(along=namnew)) {
 		varsnew = namnew[[i]]
 
 		varsmv = character()
 		for (v in varsnew) {
 			iold = sapply(namold,function(x) any(x==v))
+
+			# either in no old block, either in the same old block, if existing
+			if (all(! iold) || (nomsnew[i] %in% nomsold &&
+				iold[nomsold == nomsnew[i]])) next
+
 			inew = sapply(namnew,function(x) any(x==v))
-
-			# soit n'est dans aucun bloc, soit est dans le même bloc
-			if (all(! iold) || iold[nomsold == nomsnew[i]]) next
-
 			if (length(which(inew)) > 1) {
 				message("--> variable ",v," in several new blocks (not moved): ",
 					paste(nomsnew[inew],collapse=" "),"\n")
@@ -54,8 +56,9 @@ if (as.logical(cargs$move)) {
 			} else {
 				varsmv = c(varsmv,v)
 				sdep = sprintf("\t%s=@%s",v,nomsold[iold])
-				snam[i] = sprintf("%s,\n%s",snam[i],paste(sdep,collapse=",\n"))
-				namold[[which(iold)]] = namold[[which(iold)]][namold[[which(iold)]]!=v]
+				snam[i] = sprintf("%s\n%s",snam[i],paste(sdep,collapse="\n"))
+				iold = which(iold)
+				namold[[iold]] = namold[[iold]][namold[[iold]] != v]
 			}
 		}
 
@@ -73,12 +76,12 @@ for (i in which(! is.na(ind))) {
 
 	if (any(! varsold %in% varsnew)) {
 		ssup = sprintf("\t%s=--",varsold[! varsold %in% varsnew])
-		snam[i] = sprintf("%s,\n%s",snam[i],paste(ssup,collapse=",\n"))
+		snam[i] = sprintf("%s\n%s",snam[i],paste(ssup,collapse="\n"))
 	}
 
 	if (any(! varsnew %in% varsold)) {
 		sadd = sprintf("\t%s=++",varsnew[! varsnew %in% varsold])
-		snam[i] = sprintf("%s\n%s",snam[i],paste(sadd,collapse=",\n"))
+		snam[i] = sprintf("%s\n%s",snam[i],paste(sadd,collapse="\n"))
 	}
 
 	snam[i] = sprintf("%s\n/\n",snam[i])
@@ -88,6 +91,11 @@ for (i in which(! is.na(ind))) {
 for (i in which(is.na(ind))) {
 	varsnew = namnew[[i]]
 
-	sadd = sprintf("\t%s=++",varsnew)
-	cat(sprintf("&%s\n%s\n/\n",nomsnew[i],paste(sadd,collapse=",\n")))
+	if (length(varsnew) > 0) {
+		sadd = sprintf("\t%s=++",varsnew)
+		snam[i] = sprintf("%s\n%s",snam[i],paste(sadd,collapse="\n"))
+	}
+
+	snam[i] = sprintf("%s\n/\n",snam[i])
+	cat(snam[i])
 }

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-mitra=~/mitraille
+mitra=~/util/fortrans
 
 usage()
 {
