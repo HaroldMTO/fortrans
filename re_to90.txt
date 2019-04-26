@@ -76,7 +76,7 @@
 (\(|\.(and|x?or)\.)\(((\w+(\([^()"']+\))?|%| +|[/=<>]=|<|>|\.and\.|\.not\.)+)\)(\)|\.(and|x?or)\.);\1\3\6
 (\(|\.(and|x?or)\.)\(((\w+(\([^()"']+\))?|%| +|[/=<>]=|<|>|\.and\.|\.not\.)+)\)(\)|\.(and|x?or)\.);\1\3\6
 \((\([^()"']+\))\);\1
-(\n *(\w+(\([^()"']+\))?|%)+) *= *\(([^()"']+)\) *\n;\1 = \4\n
+(\n *(\w+(\([^()"']+\))?|%)+) *= *\(([^()"'/][^()"']+)\) *\n;\1 = \4\n
 
 # début d'unités de programme et interfaces + fonctions
 (^|\n)\n* *(program|(sub)?module|associate|((pure|impure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+)\n+;\1\n\2 \6\n
@@ -93,8 +93,11 @@
 # suppression étiquettes structures 'do' Fortran 77
 (\n *(\d+ +|\w+ *: *)*do) +([0-9]{1,5}) +(.+ *)\2 +continue\>;\1 \4end do
 
-# suppression Dr Hook (use, call et variable z?hook_handle (pas les autres)
+# suppression Dr Hook (use, call et variable z?hook_handle, mais pas les autres)
 \n+ *if *\(lhook\) *(then\n+ *)?call +dr_hook *\([^()]+\)[^\n]*(\n+ *end *if\>[^\n]*)?;
+
+# suppression blocs if/end if simples (1 seule instruction, sans else)
+\n( *if *\([^\n]+\)) *then\n+(?!if *\()([^\n\;]+)\n+ *end *if\n;\n\1 \2\n;TRUE
 
 # suppression espaces multiples
  {2,}; 

@@ -2,6 +2,12 @@ fortrans = "~/util/fortrans"
 
 change = function(re)
 {
+	if (regexpr("\\\\$",re[1]) > 0) {
+		re[1] = gsub("\\\\$","",re[1])
+		re[1] = paste(re[1:2],collapse=";")
+		re = re[-2]
+	}
+
 	# remplace '\\n' par '\n' dans '[...]'
 	re[1] = gsub("\\[([^\\]*)\\\\n([^\\]*)\\]","[\\1\n\\2]",re[1])
 
@@ -178,7 +184,8 @@ squelette = function(lignes)
 	lignes[regexpr(sq,lignes) > 0]
 }
 
-lre = strsplit(readLines(sprintf("%s/re_to90.txt",fortrans)),";")
+re90 = readLines(sprintf("%s/re_to90.txt",fortrans))
+lre = strsplit(re90,";")
 lre = lre[! sapply(lre,function(x) length(x) == 0 || regexpr("^ *#",x[1]) > 0)]
 lre = lapply(lre,change)
 
