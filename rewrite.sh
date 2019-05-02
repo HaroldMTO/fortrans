@@ -152,7 +152,6 @@ then
 	while read ddin
 	do
 		ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
-		mkdir -p $ddout
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
 			ext=$ext width=$width tabs=$tabs
 	done < $tmpdd

@@ -79,7 +79,7 @@
 (\n *(\w+(\([^()"']+\))?|%)+) *= *\(([^()"'/][^()"']+)\) *\n;\1 = \4\n
 
 # début d'unités de programme et interfaces + fonctions
-(^|\n)\n* *(program|(sub)?module|associate|((pure|impure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+)\n+;\1\n\2 \6\n
+(^|\n)\n* *(program|(sub)?module|associate|((pure|impure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+)\n+;\1\n\2 \7\n
 (^|\n)\n* *(((pure|impure|elemental|recursive|(integer|real|double precision|character|complex|logical|type|class)(\*\d+|\([^()]+\))?) +)*function)\> +([^\n]+)\n+;\1\n\2 \7\n
 
 # début et alternatives de structures de contrôle

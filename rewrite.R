@@ -123,7 +123,7 @@ resize = function(lignes)
 {
 	for (i in which(nchar(lignes) > Gwidth)) lignes[i] = splitLine(lignes[i])
 
-	lignes
+	unlist(strsplit(lignes,split="\n"))
 }
 
 reindent = function(lignes,file)
@@ -172,7 +172,7 @@ reindent = function(lignes,file)
 		lignes[i] = gsub("^ *",paste(rep("\t",tabi),collapse=""),lignes[i])
 	}
 
-	unlist(strsplit(lignes,split="\n"))
+	lignes
 }
 
 squelette = function(lignes)
@@ -210,11 +210,12 @@ if (file.info(cargs$ficin)$isdir) {
 }
 
 if ("ficout" %in% names(cargs)) {
-	# ficout : par défaut, est un fichier
+	ficout0 = NULL
 	if (file.exists(cargs$ficout) && file.info(cargs$ficout)$isdir) {
 		ficout = paste(cargs$ficout,basename(ficin),sep="/")
 	} else if (length(ficin) > 1) {
-		ficout = rep(tempfile(fileext=".f90"),length(ficin))
+		ficout = tempfile(fileext=rep(".f90",length(ficin)))
+		ficout0 = cargs$ficout
 	} else {
 		ficout = cargs$ficout
 	}
@@ -247,6 +248,12 @@ if ("ficout" %in% names(cargs)) {
 		nout = nout + length(flines)
 		texte = paste(flines,collapse="\n")
 		writeLines(texte,ficout[i])
+	}
+
+	if (! is.null(ficout0)) {
+		for (fic in ficout[-length(ficout)]) cat("\n",file=fic,append=TRUE)
+		if (file.exists(ficout0)) file.remove(ficout0)
+		file.append(ficout0,ficout)
 	}
 
 	cat("Lignes",cargs$ficin,":",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
