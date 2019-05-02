@@ -11,12 +11,13 @@ Description :
 considérés Fortran 90.
 
 Syntaxe :
-	$(basename $0) -i DIRIN -o DIROUT [-ext EXT] [-width WIDTH] [-h]
+	$(basename $0) -i DIRIN -o DIROUT [-ext EXT] [-tabs TABS] [-width WIDTH] [-h]
 
 Arguments :
 	DIRIN : répertoire (ou fichier !) Fortran 90
 	DIROUT : répertoire de sortie, peuplé en miroir de DIRIN
 	EXT : extension de fichier Fortran
+	TABS : 'taille' des tabulations (3 par défaut)
 	WIDTH : taille maximale des lignes Fortran en sortie (90 par défaut)
 	-h : affiche cette aide et termine le programme
 
@@ -38,6 +39,12 @@ concaténés dans DIROUT.
 	Si une extension est fournie, elle sera traitée et remplace les formats \
 Fortran par défaut (alors non traités).
 
+	Par défaut, les lignes Fortran sont réalignées par des tabulations de \
+taille 3 et redimensionnées à 90 caractères.
+	Une taille de tabulation inférieure à 3 annule le réalignement et le \
+redimensionnement des lignes.
+	Une taille de ligne inférieure à 10 annule le redimensionnement des lignes.
+
 Retour :
 	non nul en cas d'erreur
 	0 sinon
@@ -51,6 +58,7 @@ Dépendances :
 dirin=""
 dirout=""
 ext=""
+tabs=3
 width=90
 help=0
 
@@ -76,6 +84,10 @@ do
 			;;
 		-width)
 			width=$2
+			shift
+			;;
+		-tabs)
+			tabs=$2
 			shift
 			;;
 		-h)
@@ -119,7 +131,7 @@ if [ -f $dirin ]
 then
 	echo "Total $dirin : 1 fichier Fortran 90"
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout" \
-		width=$width
+		width=$width tabs=$tabs
 elif [ -d $dirin ]
 then
 	tmp=$(mktemp --tmpdir=/tmp)
@@ -142,7 +154,7 @@ then
 		ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
 		mkdir -p $ddout
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
-			ext=$ext width=$width
+			ext=$ext width=$width tabs=$tabs
 	done < $tmpdd
 
 	unlink $tmp

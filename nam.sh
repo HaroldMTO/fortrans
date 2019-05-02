@@ -8,7 +8,7 @@ Description:
 supposed to contain namelist declarations.
 
 	Files produced are:
-		namnul.txt: empty concatenated list of namelists
+		namnul.txt: empty concatenated ordered list of namelists
 		namelists.f90: list of all found namelist declarations, as a Fortran file
 		(note: namelist names and variables are sorted out)
 
@@ -39,6 +39,7 @@ Author:
 
 ext=""
 help=0
+keep=0
 
 [ $# -eq 0 ] && help=1
 
@@ -51,6 +52,9 @@ do
 			;;
 		-h)
 			help=1
+			;;
+		-keep)
+			keep=1
 			;;
 		*)
 			echo "$1 : unknown option, ignored" >&2
@@ -73,8 +77,9 @@ fi
 set -e
 
 tmpdir=$(mktemp -d tmpXXX)
-trap 'rm -r $tmpdir' EXIT
+trap '[ $keep -eq 0 ] && rm -r $tmpdir' EXIT
 
+echo "Listing dirs with files '*.$ext'"
 find -type f -name \*.$ext -printf "%h\n" | sort -u > $tmpdir/nam.lst
 if [ ! -s $tmpdir/nam.lst ]
 then
@@ -82,15 +87,16 @@ then
 	exit
 fi
 
+echo "Rewrite Fortran files"
 while read dd
 do
-	rewrite.sh -i $dd -o $tmpdir/$dd -ext "$ext" > /dev/null
-	# que 'namelist' (pas garanti...)
+	rewrite.sh -i $dd -o $tmpdir/$dd -ext "$ext" -tabs 0 >> $tmpdir/rewrite.log
+	# only 'namelist' (not guaranteed...)
 	grep -ihE '^\s*namelist\s*/\s*\w+\s*/' $tmpdir/$dd/*.$ext | \
 		sed -re 's: *::g' -e 's:!.*::'
 done < $tmpdir/nam.lst > $tmpdir/nam.f90
 
-# ordering of variables and namelists (sort, without -u)
+echo "Ordering variables and namelists" # sort, without -u
 while read nam
 do
 	pre=$(echo $nam | sed -re 's:^(.+/.+/).+:\1:')

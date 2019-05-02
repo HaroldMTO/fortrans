@@ -172,7 +172,7 @@ reindent = function(lignes,file)
 		lignes[i] = gsub("^ *",paste(rep("\t",tabi),collapse=""),lignes[i])
 	}
 
-	lignes
+	unlist(strsplit(lignes,split="\n"))
 }
 
 squelette = function(lignes)
@@ -197,6 +197,9 @@ names(cargs) = sapply(args,function(x) x[1])
 
 Gwidth = 90
 if ("width" %in% names(cargs)) Gwidth = as.integer(cargs$width)
+
+Gtabs = 3
+if ("tabs" %in% names(cargs)) Gtabs = as.integer(cargs$tabs)
 
 # ficin doit exister
 if (file.info(cargs$ficin)$isdir) {
@@ -231,17 +234,19 @@ if ("ficout" %in% names(cargs)) {
 		nin = nin + length(flines)
 
 		texte = paste(flines,collapse="\n")
-		texte2 = stripbang(texte)
-		for (re in lre) texte2 = gsub(re[1],re[2],perl=re[3],texte2,useBytes=TRUE)
+		texte = stripbang(texte)
+		for (re in lre) texte = gsub(re[1],re[2],perl=re[3],texte,useBytes=TRUE)
 
-		texte3 = rename(texte2)
-		flines2 = strsplit(texte3,"\n")[[1]]
-		flines3 = reindent(flines2,ficin[i])
-		flines4 = resize(flines3)
+		texte = rename(texte)
+		flines = strsplit(texte,"\n")[[1]]
+		if (Gtabs >= 3) {
+			flines = reindent(flines,ficin[i])
+			if (Gwidth > 10) flines = resize(flines)
+		}
 
-		nout = nout + length(flines4)
-		texte4 = paste(flines4,collapse="\n")
-		writeLines(texte4,ficout[i])
+		nout = nout + length(flines)
+		texte = paste(flines,collapse="\n")
+		writeLines(texte,ficout[i])
 	}
 
 	cat("Lignes",cargs$ficin,":",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
@@ -262,8 +267,8 @@ if ("ficout" %in% names(cargs)) {
 
 		nin = nin + length(flines)
 
-		flines2 = squelette(flines)
-		fsq = c(fsq,"",flines2)
+		flines = squelette(flines)
+		fsq = c(fsq,"",flines)
 	}
 
 	cat("Squelette",dirname(ficin[1]),length(fsq),"/",nin,"\n")
