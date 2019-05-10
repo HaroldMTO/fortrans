@@ -1,5 +1,13 @@
 fortrans = "~/util/fortrans"
 
+toUTF8 = function(x)
+{
+	xtmp = iconv(x,to="UTF8")
+	if (any(is.na(xtmp))) xtmp = iconv(x,"LATIN1","UTF8")
+
+	xtmp
+}
+
 change = function(re)
 {
 	if (regexpr("\\\\$",re[1]) > 0) {
@@ -37,7 +45,7 @@ stripbang = function(texte)
 		ind = pos[4] + attr(pos,"match.length")[4] - 1
 		s = substring(tt,pos[4],ind)
 
-		# fusion lignes continuées et suppression des '!'
+		# fusion lignes continuÃ©es et suppression des '!'
 		s1 = gsub("!","",gsub(strcontRE,"",s))
 
 		tt = substring(texte,n+ind+1)
@@ -79,9 +87,9 @@ rename = function(texte)
 
 splitLine = function(s,ntab=1)
 {
-	# critère d'arrêt de la récursion
+	# critÃ¨re d'arrÃªt de la rÃ©cursion
 	# les tab comptent pour 1 char, mais ils en font 3 de large (valeur fixe)
-	nt = nchar(sub("^(\t*).+","\\1",s))
+	nt = nchar(sub("^(\\t*).+","\\1",s))
 	if (nchar(s)+2*nt <= Gwidth) return(s)
 
 	if (regexpr("\\<if\\> *\\(.+\\) *\\<then\\>",s) > 0) {
@@ -89,11 +97,11 @@ splitLine = function(s,ntab=1)
 		resplits = c("\\.or\\.","\\.and\\.",",")
 	} else if (regexpr("\\<if\\> *\\(.+\\)",s) > 0) {
 		s = sub("(\\<if\\> *\\(.+\\)) +(\\.+)",
-			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+ntab),collapse="")),s)
+			sprintf("\\1&\n%s\\2",paste(rep("\\t",nt+ntab),collapse="")),s)
 		return(s)
 	} else if (regexpr("(\\<where\\> +\\(.+\\)) +([^=]+=[^=])",s) > 0) {
 		s = sub("(\\<where\\> +\\(.+\\)) +([^=]+=[^=])",
-			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+ntab),collapse="")),s)
+			sprintf("\\1&\n%s\\2",paste(rep("\\t",nt+ntab),collapse="")),s)
 		return(s)
 	} else if (regexpr(" = ",s) > 0) {
 		splits = c("+","-","*","/")
@@ -123,7 +131,7 @@ resize = function(lignes)
 {
 	for (i in which(nchar(lignes) > Gwidth)) lignes[i] = splitLine(lignes[i])
 
-	unlist(strsplit(lignes,split="\n"))
+	unlist(strsplit(paste(lignes,collapse="\n"),split="\n"))
 }
 
 reindent = function(lignes,file)
@@ -175,13 +183,169 @@ reindent = function(lignes,file)
 	lignes
 }
 
-squelette = function(lignes)
+keys = "associate|byte|integer|real|logical|character|complex|double precision|type|class|namelist|common|equivalence|(block )?data"
+fun = "abs|exp|log|a?cos|a?sin|a?tan|pow|min|max|mod|modulo|sum|count|real|n?int"
+array = "([[:alnum:]%]+)\\(([^()]+(\\([^()]+\\))?)+[^()]*\\)(%\\w+)?"
+arg = sprintf("(\\w+=)?(%s|\\d+|'[^']+')",array)
+oper = sprintf("%s|\\d+(\\.(\\d+)?)?([ed][+-]?\\d+)?(_jp(rb|rd|im))?",array)
+
+findargs = function(s)
+{
+	args = character()
+
+	while (nchar(s) > 0) {
+		arg1 = sub(arg,"\\3",s)
+		if (arg1 == s) return(c(args,s))
+
+		if (nchar(arg1) > 0) args = c(args,arg1)
+		s = sub(sprintf("%s( *, *)?",arg),"",s)
+	}
+
+	args
+}
+
+findops = function(s)
+{
+	ops = character()
+
+	while (nchar(s) > 0) {
+		op1 = sub(oper,"\\1",s)
+		if (op1 == s) return(c(ops,s))
+
+		if (nchar(op1) > 0) {
+			if (regexpr(sprintf("(%s)\\(",fun),op1) > 0)
+				op1 = sub(sprintf("(%s)\\((%s)[^()]*\\)",fun,oper),"\\2",op1)
+			if (nchar(op1) > 0) ops = c(ops,op1)
+		}
+
+		s = sub(sprintf("%s(\\*\\*\\d+)? *[+*/-]?(%s)?[()]*",oper,fun),"",s)
+	}
+
+	ops
+}
+
+ll = "^\\t*(if \\(.+\\) )?\\w+ *=.+([/=]=|<=?|>=?|\\.(and|or)\\.)"
+testa = "(\\t*)(else )?if \\((.+)\\) then"
+testb = "(\\t*)if \\((([^()]+|\\([^()]+\\))+.*?)\\) *(.+)"
+alt = "(\\t*)else"
+mem = "\\t*(de)?allocate\\(.+\\)"
+call = "(\\t*call\\s+\\w+)\\((.+)\\)"
+seta = sprintf("(\\t*)%s *= *(.+)",array)
+
+algo = function(line)
+{
+	if (regexpr(mem,line) > 0 || regexpr(ll,line) > 0 ||
+		regexpr("\\t*(contains|subroutine|(?!end).*\\bfunction)\\b",line,
+		perl=TRUE) > 0) {
+		return(line)
+	}
+
+	if (regexpr(sprintf("\\t*(%s)",keys),line) > 0) {
+		line = ""
+	} else if (regexpr(testa,line) > 0) {
+		line = sub(testa,"\\1\\2\\3 ->",line)
+	} else if (regexpr(testb,line) > 0) {
+		l = sub(testb,"\\4",line)
+		l = algo(l)
+		line = paste(sub(testb,"\\1\\2 ->\n\\1",line),l,collapse="\t")
+	} else if (regexpr(alt,line) > 0) {
+		line = sub(alt,"\\1/",line)
+	} else if (regexpr(call,line) > 0) {
+		s = regmatches(line,regexec(call,line))[[1]]
+		args = findargs(s[3])
+		line = sprintf("%s(%s)",s[2],paste(args,collapse=","))
+	} else if (regexpr(seta,line) > 0) {
+		s = regmatches(line,regexec(seta,line))[[1]]
+		ops = findops(s[length(s)])
+
+		# attention : 2 et 3 doivent Ãªtre contigÃ¼s
+		line = sprintf("%s <- %s",paste(s[2:3],collapse=""),
+			paste(ops,collapse=","))
+	} else {
+		line = ""
+	}
+
+	line
+}
+
+squelette = function(flines)
 {
 	sq = "^\\t*(end )?\\<(program|module|subroutine|function|call|select|case|do|if|where|else|contains)\\>"
-	#ind = rep(which(regexpr(sq,lignes) > 0),each=3) + seq(-1,1)
+	#ind = rep(which(regexpr(sq,flines) > 0),each=3) + seq(-1,1)
 	#ind = unique(sort(ind))
-	#lignes[ind[ind %in% seq(along=lignes)]]
-	lignes[regexpr(sq,lignes) > 0]
+	#lignes[ind[ind %in% seq(along=flines)]]
+	flines[regexpr(sq,flines) > 0]
+}
+
+rewrite = function(flines,filename)
+{
+	flines = tolower(flines)
+
+	texte = paste(flines,collapse="\n")
+	texte = stripbang(texte)
+	for (re in lre) texte = gsub(re[1],re[2],perl=re[3],texte,useBytes=TRUE)
+
+	texte = rename(texte)
+	flines = strsplit(texte,"\n")[[1]]
+	if (Gtabs >= 3) {
+		flines = reindent(flines,filename)
+		if (Gwidth > 10) flines = resize(flines)
+	}
+
+	flines
+}
+
+getdoc = function(flines,filename)
+{
+	texte = paste(flines,collapse="\n")
+	if (regexpr("(^|\n)\\s*(sub)?module|program\\s",texte,ignore.case=TRUE) > 0) {
+		texte = gsub("(^|\n)\\s*(sub)?module|program\\s(.*)\n\\s*contains\\s.+",
+			"\\3",texte,ignore.case=TRUE)
+		flines = unlist(strsplit(texte,"\n+"))
+		flines = grep("^!",flines,value=TRUE)
+	} else if (regexpr("(^|\n)\\s*(subroutine|[^\n!]*function)\\s",texte,
+		ignore.case=TRUE) > 0) {
+		doc = gsub("(^|\n)\\s*(subroutine|[^\n!]*function)\\s(?!!\\*{3,5} \\*\\w+)((![^\n]+\n+)+)",
+			"\\1\\3",texte,ignore.case=TRUE,perl=TRUE)
+		flines = unlist(strsplit(doc,"\n+"))
+	} else {
+		stop("contenu Fortran non reconnu")
+	}
+
+	flines = grep("!+((dir|dec|pgi)\\$|\\$|[ ~=*_+-]*$)",flines,
+		ignore.case=TRUE,invert=TRUE,value=TRUE)
+	gsub("^! *"," ",flines)
+}
+
+getalgo = function(flines,filename)
+{
+	flines = rewrite(flines)
+
+	subin = "^\\t*(subroutine|(?!end).*function) "
+	subout = "^\\t*end (subroutine|function)\\>"
+	isin = isin2 = FALSE
+	for (i in seq(along=flines)) {
+		# isin: (isin or entering) and (isin2 or not outing)
+		isin = (isin || regexpr(subin,flines[i],perl=TRUE) > 0) &&
+			(isin2 || regexpr(subout,flines[i]) < 0)
+		isin2 = isin && (isin2 || regexpr(subin,flines[i],perl=TRUE) > 0) &&
+			(isin2 || regexpr(subout,flines[i]) < 0)
+
+		if (! isin) {
+			flines[i] = ""
+			next
+		}
+
+		flines[i] = algo(flines[i])
+	}
+
+	strsplit(paste(flines,collapse="\n"),split="\n+")[[1]]
+}
+
+getcall = function(flines,filename)
+{
+	flines = rewrite(flines)
+	squelette(flines)
 }
 
 re90 = readLines(sprintf("%s/re_to90.txt",fortrans))
@@ -195,13 +359,22 @@ args = strsplit(commandArgs(trailingOnly=TRUE),split="=")
 cargs = lapply(args,function(x) unlist(strsplit(x[-1],split=":")))
 names(cargs) = sapply(args,function(x) x[1])
 
+if (cargs$opt == "doc") {
+	action = getdoc
+} else if (cargs$opt == "algo") {
+	action = getalgo
+} else if (cargs$opt == "call") {
+	action = getcall
+} else {
+	action = rewrite
+}
+
 Gwidth = 90
 if ("width" %in% names(cargs)) Gwidth = as.integer(cargs$width)
 
 Gtabs = 3
 if ("tabs" %in% names(cargs)) Gtabs = as.integer(cargs$tabs)
 
-# ficin doit exister
 if (file.info(cargs$ficin)$isdir) {
 	if (nchar(cargs$ext)) ext = sprintf("\\.%s$",cargs$ext)
 	ficin = dir(cargs$ficin,pattern=ext,full.names=TRUE)
@@ -209,75 +382,38 @@ if (file.info(cargs$ficin)$isdir) {
 	ficin = cargs$ficin
 }
 
-if ("ficout" %in% names(cargs)) {
-	ficout0 = NULL
-	if (file.exists(cargs$ficout) && file.info(cargs$ficout)$isdir) {
-		ficout = paste(cargs$ficout,basename(ficin),sep="/")
-	} else if (length(ficin) > 1) {
-		ficout = tempfile(fileext=rep(".f90",length(ficin)))
-		ficout0 = cargs$ficout
-	} else {
-		ficout = cargs$ficout
-	}
-
-	stopifnot(length(ficin) == length(ficout))
-
-	nin = nout = 0
-
-	for (i in seq(along=ficin)) {
-		flines = readLines(ficin[i])
-		flines = try(tolower(flines),silent=TRUE)
-		if (is(flines,"try-error")) {
-			flines = readLines(ficin[i],encoding="latin1")
-			flines = tolower(flines)
-		}
-
-		nin = nin + length(flines)
-
-		texte = paste(flines,collapse="\n")
-		texte = stripbang(texte)
-		for (re in lre) texte = gsub(re[1],re[2],perl=re[3],texte,useBytes=TRUE)
-
-		texte = rename(texte)
-		flines = strsplit(texte,"\n")[[1]]
-		if (Gtabs >= 3) {
-			flines = reindent(flines,ficin[i])
-			if (Gwidth > 10) flines = resize(flines)
-		}
-
-		nout = nout + length(flines)
-		texte = paste(flines,collapse="\n")
-		writeLines(texte,ficout[i])
-	}
-
-	if (! is.null(ficout0)) {
-		for (fic in ficout[-length(ficout)]) cat("\n",file=fic,append=TRUE)
-		if (file.exists(ficout0)) file.remove(ficout0)
-		file.append(ficout0,ficout)
-	}
-
-	cat("Lignes",cargs$ficin,":",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
+ficout0 = NULL
+if (file.exists(cargs$ficout) && file.info(cargs$ficout)$isdir) {
+	ficout = paste(cargs$ficout,basename(ficin),sep="/")
+} else if (length(ficin) > 1) {
+	ficout = tempfile(fileext=rep(".f90",length(ficin)))
+	ficout0 = cargs$ficout
 } else {
-	ficin = ficin[basename(ficin) != "call.f90"]
-	ficsq = sprintf("%s/call.f90",dirname(ficin[1]))
-
-	nin = 0
-
-	fsq = character()
-	for (i in seq(along=ficin)) {
-		flines = readLines(ficin[i])
-		flines = try(tolower(flines),silent=TRUE)
-		if (is(flines,"try-error")) {
-			flines = readLines(ficin[i],encoding="latin1")
-			flines = tolower(flines)
-		}
-
-		nin = nin + length(flines)
-
-		flines = squelette(flines)
-		fsq = c(fsq,"",flines)
-	}
-
-	cat("Squelette",dirname(ficin[1]),length(fsq),"/",nin,"\n")
-	writeLines(fsq[-1],ficsq)
+	ficout = cargs$ficout
 }
+
+stopifnot(length(ficin) == length(ficout))
+
+nin = nout = 0
+
+for (i in seq(along=ficin)) {
+	flines = readLines(ficin[i])
+	flines = toUTF8(flines)
+
+	nin = nin + length(flines)
+
+	flines = action(flines,ficin[i])
+
+	nout = nout + length(flines)
+	texte = paste(flines,collapse="\n")
+	writeLines(texte,ficout[i])
+}
+
+if (! is.null(ficout0)) {
+	for (i in seq(along=ficout))
+		cat("! from",ficin[i],"\n\n",file=ficout[i],append=TRUE)
+	if (file.exists(ficout0)) file.remove(ficout0)
+	invisible(file.append(ficout0,ficout))
+}
+
+cat("Lignes",cargs$ficin,":",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")

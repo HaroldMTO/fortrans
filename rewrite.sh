@@ -11,14 +11,17 @@ Description :
 considérés Fortran 90.
 
 Syntaxe :
-	$(basename $0) -i DIRIN -o DIROUT [-ext EXT] [-tabs TABS] [-width WIDTH] [-h]
+	$(basename $0) -i DIRIN -o DIROUT [-ext EXT] [-tabs TABS] [-width WIDTH] \
+[-doc|-algo] [-h]
 
 Arguments :
-	DIRIN : répertoire (ou fichier !) Fortran 90
-	DIROUT : répertoire de sortie, peuplé en miroir de DIRIN
+	DIRIN : fichier ou répertoire de fichiers Fortran 90
+	DIROUT : fichier ou répertoire de sortie, peuplé en miroir de DIRIN
 	EXT : extension de fichier Fortran
 	TABS : 'taille' des tabulations (3 par défaut)
 	WIDTH : taille maximale des lignes Fortran en sortie (90 par défaut)
+	-doc : ne retenir des fichiers Fortran que les commentaires
+	-algo : ne retenir des fichiers Fortran que l'algorithme
 	-h : affiche cette aide et termine le programme
 
 Détails :
@@ -26,24 +29,22 @@ Détails :
 indépendamment l'un de l'autre.
 
 	Si DIRIN est un répertoire, tous les fichiers Fortran reconnus sous \
-DIRIN seront traités.
-	Si DIRIN est un fichier, ce fichier sera traité, quelle que soit \
-l'extension.
+DIRIN seront traités. Si DIRIN est un fichier, ce fichier sera traité, quelle \
+que soit l'extension.
 
-	Si DIROUT est un répertoire, ce répertoire sera créé, au besoin. Si \
-DIRIN est un répertoire, DIROUT aura la même arborescence et si DIRIN est un \
-fichier, le nouveau fichier sera produit dans DIROUT.
-	Si DIROUT est un fichier, le ou les fichiers de DIRIN seront produits \
-concaténés dans DIROUT.
+	Si DIROUT est un répertoire existant, il aura le même contenu que DIRIN, \
+qu'il soit fichier ou répertoire. Sinon, DIROUT sera un fichier et contiendra \
+le ou les fichiers de DIRIN, produits et éventuellement concaténés dans DIROUT.
 
 	Si une extension est fournie, elle sera traitée et remplace les formats \
 Fortran par défaut (alors non traités).
 
 	Par défaut, les lignes Fortran sont réalignées par des tabulations de \
-taille 3 et redimensionnées à 90 caractères.
-	Une taille de tabulation inférieure à 3 annule le réalignement et le \
-redimensionnement des lignes.
-	Une taille de ligne inférieure à 10 annule le redimensionnement des lignes.
+taille 3 et redimensionnées à 90 caractères. Une taille de tabulation \
+inférieure à 3 annule le réalignement et le redimensionnement des lignes. Une \
+taille de ligne inférieure à 10 annule le redimensionnement des lignes.
+
+	Les options '-doc' et '-call' s'excluent mutuellement.
 
 Retour :
 	non nul en cas d'erreur
@@ -60,6 +61,7 @@ dirout=""
 ext=""
 tabs=3
 width=90
+opt=rewrite
 help=0
 
 if [ $# -eq 0 ]
@@ -89,6 +91,12 @@ do
 		-tabs)
 			tabs=$2
 			shift
+			;;
+		-doc)
+			opt=doc
+			;;
+		-algo)
+			opt=algo
 			;;
 		-h)
 			help=1
@@ -131,7 +139,7 @@ if [ -f $dirin ]
 then
 	echo "Total $dirin : 1 fichier Fortran 90"
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout" \
-		width=$width tabs=$tabs
+		ext=$ext opt="$opt" width=$width tabs=$tabs
 elif [ -d $dirin ]
 then
 	tmp=$(mktemp --tmpdir=/tmp)
@@ -146,14 +154,14 @@ then
 		ext="(F|[fF]90)"
 	fi
 
-	echo "Total $dirin : $(wc -l $tmp | awk '{print $1}') fichier(s) Fortran 90"
+	echo "Total $dirin : $(wc -l $tmp | awk '{print $1}') fichiers Fortran 90"
 	sed -re 's:(.+)/.+:\1:' $tmp | sort -u > $tmpdd
 
 	while read ddin
 	do
 		ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
-			ext=$ext width=$width tabs=$tabs
+			ext=$ext opt="$opt" width=$width tabs=$tabs
 	done < $tmpdd
 
 	unlink $tmp
