@@ -6,7 +6,8 @@ usage()
 {
 	printf "
 Description:
-	Produce a 'guessed' list of environment variables used in C/C++/Fortran files
+	Produce a 'guessed' list of environment variables used in C/C++/Fortran \
+files.
 
 Synopsis:
 	$(basename $0) PATH... [-h]
@@ -16,8 +17,10 @@ Arguments:
 	-h: displays help and terminates normally
 
 Details:
-	Files are searched recursively from local directory (grep -r .)
-	Searched files are restricted to these extensions: .c, .cc, .f90 and .F90
+	Files are searched recursively from local directory (grep -r .).
+
+	Searched files are restricted to these extensions: .c, .cc, .f90 and .F90.
+
 	Listed environment variables exclude those matching (as words):
 	'$varRE'
 

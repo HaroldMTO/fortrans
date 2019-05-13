@@ -6,25 +6,29 @@ usage()
 {
 	printf "
 Description:
+	Produce the list of differences between 2 Fortran namelists files. \
+Differences between added, deleted and moved variables and namelists are \
+printed following the 'delta' namelist format.
 
 Synopsis:
 	$(basename $0) ficold ficnew [-move] [-h]
 
 Arguments:
-	-move: authorizes moving variables from another namelist
-	-h: displays help and terminates normally
+	-move: authorize moving variables from another namelist
+	-h: display help and terminate normally
 
 Details:
-	If moving variables is authorized, no moving is done if variable is present \
-in several namelists (duplicated) in the old file. However, if a variable is \
-duplicated in the new file but not in the old one, moving is done (this is \
-dirty).
+	A moved variable is a namelist variable that is present and unique in both \
+'old' and 'new' namelist files. If moving variables is authorized, no moving \
+is done if variable is duplicated (ie present in several namelists) in any of \
+'old' or 'new' file.
 
 Exit status:
 	Non 0 in case of error
 	0 if not
 
 Dependencies:
+	None
 
 Author:
 	H Petithomme, Meteo France - DR/GMAP/ALGO

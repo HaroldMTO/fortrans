@@ -8,9 +8,9 @@ Description:
 supposed to contain namelist declarations.
 
 	Files produced are:
-		namnul.txt: empty concatenated ordered list of namelists
-		namelists.f90: list of all found namelist declarations, as a Fortran file
-		(note: namelist names and variables are sorted out)
+		- namnul.txt: empty concatenated ordered list of namelists
+		- namelists.f90: list of all found namelist declarations, as a Fortran \
+file. Note: namelist names and variables are sorted out.
 
 Synopsis:
 	$(basename $0) [-ext EXT] [-h]
@@ -20,17 +20,19 @@ Arguments:
 	-h: displays help and terminates normally
 
 Details:
-	Files are searched recursively from local directory (find)
-	Files are assumed to all be Fortran code files
+	Files are searched recursively from local directory (find).
+
+	Files are assumed to all be Fortran code files.
+
 	Found files are rewritten by rewrite.sh before namelist extraction from \
-Fortran code files
+Fortran code files.
 
 Exit status:
-	Non 0 in case of non unique namelist names or any else error
+	Non 0 in case of non unique namelist names or any else error.
 	0 if not
 
 Dependencies:
-	Utility tool rewrite.sh (parsing and rewriting of Fortran 90 files)
+	Utility tool rewrite.sh (parsing and rewriting of Fortran 90 files).
 
 Author:
 	H Petithomme, Meteo France - DR/GMAP/ALGO

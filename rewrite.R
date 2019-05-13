@@ -184,21 +184,32 @@ reindent = function(lignes,file)
 }
 
 keys = "associate|byte|integer|real|logical|character|complex|double precision|type|class|namelist|common|equivalence|(block )?data"
-fun = "abs|exp|log|a?cos|a?sin|a?tan|pow|min|max|mod|modulo|sum|count|real|n?int"
-array = "([[:alnum:]%]+)\\(([^()]+(\\([^()]+\\))?)+[^()]*\\)(%\\w+)?"
-arg = sprintf("(\\w+=)?(%s|\\d+|'[^']+')",array)
-oper = sprintf("%s|\\d+(\\.(\\d+)?)?([ed][+-]?\\d+)?(_jp(rb|rd|im))?",array)
+array = "([[:alnum:]%]+)\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\)?(%[[:alnum:]%]+)?"
+fun1 = "abs|exp|log|a?cos|a?sin|a?tan|pow|min|max|mod|modulo|sum"
+fun2 = "all|any|isnan|count|real|n?int|sign|huge|tiny|size|shape|trim"
+fun = paste(fun1,fun2,collapse="|")
+arg = sprintf("%s|\\d+|'[^']+'",array)
+num = "\\d+(\\.\\d?)?([ed][+-]?\\d+)?(_\\w+)?"
+oper = sprintf("%s|%s",array,num)
 
 findargs = function(s)
 {
 	args = character()
 
+	# first get rid of arg sep, funs, nums and op seps
+	s = sub(sprintf("(\\w+=|(%s)\\(|%s|[,()*/+-]+)*",fun,num),"",s)
+
 	while (nchar(s) > 0) {
 		arg1 = sub(arg,"\\3",s)
 		if (arg1 == s) return(c(args,s))
 
-		if (nchar(arg1) > 0) args = c(args,arg1)
-		s = sub(sprintf("%s( *, *)?",arg),"",s)
+		if (nchar(arg1) > 0) {
+			if (regexpr(sprintf("(%s)\\(",fun),arg1) > 0)
+				arg1 = sub(sprintf("(%s)\\(%s(,[^()]+)*\\)",fun,array),"\\2",arg1)
+			args = c(args,arg1)
+		}
+
+		s = sub(sprintf("%s(\\w+=|(%s)\\(|%s|[,()*/+-]+)*",arg,fun,num),"",s)
 	}
 
 	args
@@ -208,44 +219,46 @@ findops = function(s)
 {
 	ops = character()
 
+	# first get rid of op seps, funs and nums
+	s = sub(sprintf("([ ()+*/-]+|(%s)\\(|%s)*",oper,fun,num),"",s)
+
 	while (nchar(s) > 0) {
 		op1 = sub(oper,"\\1",s)
 		if (op1 == s) return(c(ops,s))
 
 		if (nchar(op1) > 0) {
 			if (regexpr(sprintf("(%s)\\(",fun),op1) > 0)
-				op1 = sub(sprintf("(%s)\\((%s)[^()]*\\)",fun,oper),"\\2",op1)
-			if (nchar(op1) > 0) ops = c(ops,op1)
+				op1 = sub(sprintf("(%s)\\(%s(,[^()]+)*\\)",fun,array),"\\2",op1)
+			ops = c(ops,op1)
 		}
 
-		s = sub(sprintf("%s(\\*\\*\\d+)? *[+*/-]?(%s)?[()]*",oper,fun),"",s)
+		s = sub(sprintf("%s([ ()+*/-]+|(%s)\\(|%s)*",oper,fun,num),"",s)
 	}
 
 	ops
 }
 
-ll = "^\\t*(if \\(.+\\) )?\\w+ *=.+([/=]=|<=?|>=?|\\.(and|or)\\.)"
+ll = "(\\t*)if \\((.+)\\) (\\w+ *=.+)"
 testa = "(\\t*)(else )?if \\((.+)\\) then"
-testb = "(\\t*)if \\((([^()]+|\\([^()]+\\))+.*?)\\) *(.+)"
-alt = "(\\t*)else"
+testb = "(\\t*)if \\((.+)\\) (\\w.+)"
+alt = "(\\t*)else$"
 mem = "\\t*(de)?allocate\\(.+\\)"
-call = "(\\t*call\\s+\\w+)\\((.+)\\)"
-seta = sprintf("(\\t*)%s *= *(.+)",array)
+call = "(\\t*call \\w+)\\((.+)\\)"
+seta = sprintf("(\\t*)%s = *(\\(+|%s[*/+-]+)*(.+)",array,num)
 
 algo = function(line)
 {
-	if (regexpr(mem,line) > 0 || regexpr(ll,line) > 0 ||
-		regexpr("\\t*(contains|subroutine|(?!end).*\\bfunction)\\b",line,
+	if (regexpr("^\\t*(contains|subroutine|(?!end).*\\bfunction)\\b",line,
 		perl=TRUE) > 0) {
 		return(line)
 	}
 
-	if (regexpr(sprintf("\\t*(%s)",keys),line) > 0) {
-		line = ""
+	if (regexpr(ll,line) > 0) {
+		line = sub(ll,"\\1\\2 -> \\3",line)
 	} else if (regexpr(testa,line) > 0) {
 		line = sub(testa,"\\1\\2\\3 ->",line)
 	} else if (regexpr(testb,line) > 0) {
-		l = sub(testb,"\\4",line)
+		l = sub(testb,"\\3",line)
 		l = algo(l)
 		line = paste(sub(testb,"\\1\\2 ->\n\\1",line),l,collapse="\t")
 	} else if (regexpr(alt,line) > 0) {
@@ -319,7 +332,7 @@ getdoc = function(flines,filename)
 
 getalgo = function(flines,filename)
 {
-	flines = rewrite(flines)
+	flines = rewrite(flines,filename)
 
 	subin = "^\\t*(subroutine|(?!end).*function) "
 	subout = "^\\t*end (subroutine|function)\\>"
