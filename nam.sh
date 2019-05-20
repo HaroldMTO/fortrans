@@ -92,6 +92,7 @@ fi
 echo "Rewrite Fortran files"
 while read dd
 do
+	mkdir -p $tmpdir/$dd
 	rewrite.sh -i $dd -o $tmpdir/$dd -ext "$ext" -tabs 0 >> $tmpdir/rewrite.log
 	# only 'namelist' (not guaranteed...)
 	grep -ihE '^\s*namelist\s*/\s*\w+\s*/' $tmpdir/$dd/*.$ext | \
