@@ -20,27 +20,24 @@
  +(\n|$);\1
 
 # suppression commentaires Fortran 90 (lignes entieres non vides)
-(^|\n)( *!+\n+)+;\1\n
-(^|\n)( *!(?! *((dec|dir|pgi)\$|\$omp))[^\n]+\n*)+;\1;TRUE
+(^|\n)(?: *!+\n+)+;\1\n
+(^|\n)(?: *!(?! *((dec|dir|pgi)\$|\$omp))[^\n]+\n*)+;\1;TRUE
 
 # suppression commentaires Fortran 90 (fin de ligne)
-(^|\n)(( *[^\n! ]+)+) *!+[^\n]*;\1\2
+(^|\n)((?: *[^\n! ]+)+) *!+[^\n]*;\1\2
 
 # concaténation des lignes continuées (sur fin de ligne)
-&( *![^\n]*)?\n+ *(& *|(?!! *((dec|dir|pgi)\$|\$omp)));\3;TRUE
+&(?: *![^\n]*)?\n+ *&? *(?! *! *((dec|dir|pgi)\$|\$omp));;TRUE
 \n {5}[1-9&*+];
 
-# suppression espaces avant/après virgule (hors commentaires car supprimés)
- *, *;,
+# suppression d'espaces avant/après virgule, affectations et opérateurs maths
+(\))? *(\*\*|=>|[=,+/*\-]) *(\()?;\1\2\3
 
-# suppression d'espaces avant/après opérateurs maths et affectation
- *([=,(+/*\-]) *;\1
-
-# reespacement affectations en instruction simple
-(\n *[^\n()=]+(\(([^\n()=]+|\([^\n()=]+\))+\))?) *= *([^\n=>]);\1 = \4
+# reespacement affectations ('=' ou '=>') en instruction simple
+(\n *(?:if *\([^\n]+\) *)?\w+(?:%\w+|\((?:[^\n()=]+|\([^\n()=]+\))+\))*) *(=>?) *;\1 \2 
 
 # resuppression d'espaces sur indices boucles do et déclarations
-(\n *(\d+ +|\w+ *: *)*do \w+) *= *;\1=
+#(\n *(?:\d+ +|\w+ *: *)*do \w+) *= *;\1=
 
 # suppression d'espaces avant/après parenthèses
 \( +;(
@@ -56,10 +53,12 @@
  *(\.ge\.|>=) *; >= 
  *(\.lt\.) *; < 
  *(\.gt\.) *; > 
- *=> *;=>
+
+# espacement association et déclaration f90
+# *=> *;=>
  *: ;: 
  *:: *([^\n]); :: \1
-([^= ]+) *\.(and|or|not|xor)\. *;\1.\2.
+([^=>]) *\.(not|and|x?or)\. *;\1.\2.
 
 # espacement structures de controle
 \<do *(while|concurrent)\>;do \1
@@ -91,18 +90,18 @@
 \n+( *(end|contains))\>;\n\1
 
 # suppression étiquettes structures 'do' Fortran 77
-(\n *(\d+ +|\w+ *: *)*do) +([0-9]{1,5}) +(.+ *)\2 +continue\>;\1 \4end do
+(\n *(?:\d+ +|\w+ *: *)?do) +([0-9]{1,5}) +(.+)\n+ *\2 +continue\>;\1 \3\nend do
 
 # suppression Dr Hook (use, call et variable z?hook_handle, mais pas les autres)
-\n+ *if *\(lhook\) *(then\n+ *)?call +dr_hook *\([^()]+\)[^\n]*(\n+ *end *if\>[^\n]*)?;
+\n+ *if *\(lhook\) *(?:then\n+ *)?call +dr_hook *\([^()]+\)[^\n]*(?:\n+ *end *if\>[^\n]*)?;
 
 # suppression blocs if/end if simples (1 seule instruction, sans else)
-\n( *if *\([^\n]+\)) *then\n+(?!if *\()([^\n\;]+)\n+ *end *if\n;\n\1 \2\n;TRUE
+#\n( *if *\([^\n]+\)) *then\n+(?! *if *\()([^\n\;]+)\n+ *end *if\n;\n\1 \2\n;TRUE
 
-# suppression espaces multiples
- {2,}; 
+# suppression espaces multiples en milieu de ligne
+([^^\n])  +;\1 
 
 # suppression lignes vides multiples (début, fin et milieu de fichier)
-^\n+;
-\n+$;\n
-\n{3,};\n\n
+^[\n ]+;
+[\n ]+$;\n
+\n[\n ]+\n;\n\n
