@@ -135,6 +135,8 @@ set -e
 dirin=$(echo $dirin | sed -re 's:/+$::')
 dirout=$(echo $dirout | sed -re 's:/+$::')
 
+[ -f $dirout ] && rm -v $dirout
+
 if [ -f $dirin ]
 then
 	echo "Total $dirin : 1 fichier Fortran 90"
@@ -157,9 +159,11 @@ then
 	echo "Total $dirin : $(wc -l $tmp | awk '{print $1}') fichiers Fortran 90"
 	sed -re 's:(.+)/.+:\1:' $tmp | sort -u > $tmpdd
 
+	[ ! -d $dirout ] && ddout=$dirout
+
 	while read ddin
 	do
-		ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
+		[ -d $dirout ] && ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
 			ext=$ext opt="$opt" width=$width tabs=$tabs
 	done < $tmpdd

@@ -33,10 +33,9 @@ change = function(re)
 
 regstop = function(x) x[1] + attr(x,"match.length")[1] - 1
 
-strcont = "& *(!.*?)?\n+ *&?"
+cont = "& *(!.*?)?\n+ *&?"
 string = sprintf(
-	"(^|\n)([^'\"\n!&]+)('([^'&]+|''|%s)*'|\"([^\"&]+|\"\"|%s)*\")",strcont,
-	strcont)
+	"(^|\n)(?![^'\"\n!]*!+[^\n]*)[^'\"\n!]+('([^'&]+|''|%s)*'|\"([^\"&]+|\"\"|%s)*\")",cont,cont)
 
 stripbang = function(texte)
 {
@@ -44,14 +43,22 @@ stripbang = function(texte)
 	tt = ""
 
 	repeat {
-		ire = regexec(string,texte)
+		ire = regexec(string,texte,perl=TRUE)
 		if (ire[[1]][1] < 0) break
 
 		s = regmatches(texte,ire)[[1]]
 
-		# chaines : fusion lignes continuées et suppression des '!'
-		# fait dans s[1] et non dans s[4] car action OK sur s[1]
-		s1 = gsub("!","",gsub(strcont,"",s[1]))
+		# suppression des '...' (externes, chaine vide ou non), PUIS suppression
+		# des '' internes (dans cet ordre)
+		s3 = toupper(s[3])
+		if (regexpr("\"",s3) < 0) {
+			s3 = sub("^'(.*)'$","\"\\1\"",s[3])
+			s3 = gsub("''","'",s3)
+		}
+
+		# chaines : fusion lignes continuées, suppression des '!'
+		s1 = sub(s[3],s3,s[1],fixed=TRUE)
+		s1 = gsub("!","",gsub(cont,"",s1))
 
 		deb = substr(texte,1,regstop(ire[[1]]))
 		deb = sub(s[1],s1,deb,fixed=TRUE)
@@ -63,7 +70,7 @@ stripbang = function(texte)
 }
 
 # indices de boucles scalaires uniquement, pas d'étiquette
-arre = "\\w+(%\\w+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
+arre = "[a-z]\\w*(%\\w+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
 indo = sprintf("(\n *)do (\\w+)=(\\w+),(\\w+)\n(%s =[^\n]+)\n *end do.*?\n",
 	arre)
 
@@ -130,8 +137,6 @@ deif = function(texte)
 	paste(tt,texte,sep="")
 }
 
-types = "(integer|real|double precision|character|complex|logical|type|class)"
-
 rename = function(texte,used,decl,asso,occ,replace)
 {
 	for (i in seq(along=used)) {
@@ -146,7 +151,7 @@ rename = function(texte,used,decl,asso,occ,replace)
 
 stripasso = function(asso,texte)
 {
-	s = sub("^ *associate\\(([^\n]+)\\).*","\\1",asso)
+	s = sub("^ *associate *\\(([^\n]+)\\).*","\\1",asso)
 	stopifnot(s != asso)
 
 	lind = gregexpr(sprintf("\\w+=>%s",arre),s)
@@ -164,8 +169,8 @@ stripasso = function(asso,texte)
 
 cleanasso = function(flines)
 {
-	assoin = "^\\t*(associate *\\()"
-	assoout = "^\\t*end associate\\>"
+	assoin = "^ *associate *\\("
+	assoout = "^ *end associate\\>"
 
 	ind1 = ind2 = integer()
 
@@ -173,14 +178,17 @@ cleanasso = function(flines)
 	for (i in seq(along=flines)) {
 		# isin1: (isin1 or entrant) and (isin2 or non sortant)
 		# isin2: (isin2 or entrant) and non sortant
-		isin2 = isin1 && (isin2 || regexpr(assoin,flines[i],perl=TRUE) > 0) &&
+		isin2 = isin1 && (isin2 || regexpr(assoin,flines[i]) > 0) &&
 			regexpr(assoout,flines[i]) < 0
-		isin1 = (isin1 || regexpr(assoin,flines[i],perl=TRUE) > 0) &&
+		isin1 = (isin1 || regexpr(assoin,flines[i]) > 0) &&
 			(isin2 || regexpr(assoout,flines[i]) < 0)
 
 		# niveau 3 non traité (problème pour savoir quand on sort)
-		if (isin2 && length(ind2) > 0 && regexpr(assoin,flines[i],perl=TRUE) > 0)
+		if (isin2 && length(ind2) > 0 && regexpr(assoin,flines[i]) > 0){
+			isin1 = FALSE
+			isin2 = FALSE
 			break
+		}
 
 		# associate imbriqués non disjoints, donc 1 et 2 ne s'excluent pas
 		# on nettoie 2, puis 1
@@ -201,26 +209,29 @@ cleanasso = function(flines)
 		}
 	}
 
-	strsplit(paste(flines,collapse="\n"),split="\n+")[[1]]
+	stopifnot(! isin1 && ! isin2)
+
+	flines
 }
+
+types = "integer|real|double precision|character|complex|logical|type|class"
+# blocin et blocout dépendent de comm, blocin dépend de blocout
+nul = "^$"
+inc = "^ *#"
+tag = "^ *[0-9]{1,5}"
+comm = "^ *!"
+mproc = "^ *module +procedure\\> +"
+blocass = "^ *end +associate\\>"
+blocout = "^ *end( +\\w+| *!|$)"
+unit = "program|(sub)?module|(((im)?pure|elemental|recursive) +)*(subroutine|(abstract +)?interface)\\>"
+ftn = sprintf("(((im)?pure|elemental|recursive|(%s)(\\*\\d+|\\([[:alnum:]_=]+\\))?) +)*function\\>",types)
+bloc = "(\\d+ +|\\w+ *: *)*((do|select)\\>|if *\\([^!]+\\) *then\\>|where *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$)"
+bloct = "type *[^(]"
+blocin = sprintf("^ *(%s|%s|%s|%s)",unit,ftn,bloc,bloct)
+alter = "^ *(else|contains)\\>"
 
 reindent = function(lignes)
 {
-	# blocin et blocout dépendent de comm, blocin dépend de blocout
-	nul = "^$"
-	inc = "^ *#"
-	tag = "^ *[0-9]{1,5}"
-	comm = "^ *!"
-	mproc = "^ *module +procedure\\> +"
-	blocass = "^ *end +associate\\>"
-	blocout = "^ *end( +\\w+|!|$)"
-	unit = "((pure|impure|elemental|recursive|abstract) +)*(program|(sub)?module|subroutine|interface)\\>"
-	ftn = sprintf("((pure|impure|elemental|recursive|%s)(\\*\\d+|\\([[:alnum:]_=]+\\))? +)*function\\>",types)
-	bloc = "(\\d+ +|\\w+ *: *)*((do|select)\\>|if *\\([^!]+\\) *then\\>|where *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$)"
-	bloct = "type *[^(]"
-	blocin = sprintf("^ *(%s|%s|%s|%s)",unit,ftn,bloc,bloct)
-	alter = "^ *(else|contains)\\>"
-
 	tab = 0
 
 	for (i in seq(along=lignes)) {
@@ -256,7 +267,6 @@ reindent = function(lignes)
 splitLine = function(s,ntab=1)
 {
 	# après changement de caractère d'indentation (' ' -> '\t')
-	stopifnot(regexpr("^\\t* +|\n",s) < 0)
 
 	# critère d'arrêt de la récursion
 	# les tab comptent pour 1 char, mais ils en font Gtabs de large
@@ -316,95 +326,56 @@ resize = function(lignes)
 }
 
 #keys = sprintf("associate|%s|namelist|common|equivalence|(block )?data",types)
-array = "([[:alnum:]%]+)(%\\w+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
+array = "\\<([a-z][[:alnum:]_%]*)(%[a-z]\\w*|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
 fun1 = "abs|exp|log|a?cos|a?sin|a?tan|pow|min|max|mod|modulo|sum"
 fun2 = "all|any|isnan|count|real|n?int|sign|huge|tiny|size|shape|trim"
 fun = paste(fun1,fun2,sep="|")
-arg = sprintf("%s|\\d+|'[^']+'",array)
-num = "(\\d+(\\.\\d?)?|\\.\\d+)(_\\w+)?([ed][+-]?\\d+)?"
-oper = sprintf("%s|%s",array,num)
+#arg = sprintf("%s|\\d+|'[^']+'",array)
+num = "\\<(\\d+(\\.\\d*)?|\\.\\d+)(_\\w+)?([ed][+-]?\\d+)?"
+#oper = sprintf("%s|%s",array,num)
 
-findargs = function(s)
+findarrays = function(s)
 {
-	args = character()
+	ms = regmatches(s,gregexpr(array,s,ignore.case=TRUE))[[1]]
+	if (length(ms) == 0) return(gsub(num,"\\1\\4",s))
 
-	# first get rid of arg sep, funs, nums and op seps
-	s = sub(sprintf("(\\w+=|(%s)\\(|%s|[,()*/+-]+)*",fun,num),"",s)
-
-	while (nchar(s) > 0) {
-		arg1 = sub(arg,"\\3",s)
-		if (arg1 == s) return(c(args,s))
-
-		# get rid of potentially present intrinsic functions
-		arg1 = sub(sprintf("(%s)\\(%s(,[^()]+)*\\)",fun,array),"\\2",arg1)
-		if (nchar(arg1) > 0) args = c(args,arg1)
-
-		s = sub(sprintf("%s(\\w+=|(%s)\\(|%s|[,()*/+-]+)*",arg,fun,num),"",s)
-	}
-
-	args
+	arrays = sub(sprintf("(%s)\\((.+,)?%s(,.+)?\\)",fun,array),"\\3",ms)
+	sub(array,"\\1",arrays)
 }
 
-findops = function(s)
-{
-	# first get rid of op seps, funs and nums
-	s = sub(sprintf("([ ()+*/-]+|(%s)\\(|%s)*",fun,num),"",s)
-
-	ms = regmatches(s,gregexpr(array,s))[[1]]
-	ops = sub(sprintf("(%s)\\(%s(,[^()]+)*\\)",fun,array),"\\2",
-		grep("^[[:alpha:]]+",ms,value=TRUE))
-	return(ops)
-
-	ops = character()
-
-	while (nchar(s) > 0) {
-		op1 = sub(oper,"\\1",s)
-		if (op1 == s) return(c(ops,s))
-
-		# get rid of potentially present intrinsic functions
-		op1 = sub(sprintf("(%s)\\(%s(,[^()]+)*\\)",fun,array),"\\2",op1)
-		if (nchar(op1) > 0) ops = c(ops,op1)
-
-		s = sub(sprintf("%s([ ()+*/-]+|(%s)\\(|%s)*",oper,fun,num),"",s)
-	}
-
-	ops
-}
-
-ll = "(\\t*)if \\((.+)\\) (\\w+ *=.+)"
-testa = "(\\t*)(else )?if \\((.+)\\) then"
-testb = "(\\t*)if \\((.+)\\) (\\w+.+)"
-alt = "(\\t*)else$"
-mem = "\\t*(de)?allocate\\(.+\\)"
-call = "(\\t*call \\w+)\\((.+)\\)"
-seta = sprintf("(\\t*)%s = *(\\(+|%s[*/+-]+)*(.+)",array,num)
+ll = "^(\\t*(if \\(.+\\) +)?)(\\w+ *=.*\\.(and|x?or|not)\\..+)"
+alt = "^(\\t*)else$"
+mem = "^\\t*(associate|(if \\(.+\\) )?(de)?allocate) *\\("
+loop = "^(\\t*do) \\w+=.+"
+testa = "^(\\t*)(else )?if \\((.+)\\) +then"
+testb = "^(\\t*)if \\((.+)\\) +(\\w+.+)"
+call = "^(\\t*call \\w+)\\((.+)\\)"
+seta = sprintf("^(\\t*)%s = *(\\(+|%s[*/+-]+)*(.+)",array,num)
 
 algo = function(line)
 {
 	if (regexpr("^\\t*(contains|subroutine|(?!end).*\\bfunction)\\b",line,
-		perl=TRUE) > 0) {
-	} else if (regexpr("^\\t*(associate|(if \\(.+\\) )?(de)?allocate)\\(",line) > 0) {
-		line = ""
+		perl=TRUE) > 0 || regexpr(alt,line) > 0 || regexpr(ll,line) > 0) {
 		return(line)
 	}
 
-	if (regexpr(ll,line) > 0) {
-		line = sub(ll,"\\1\\2 -> \\3",line)
+	if (regexpr(mem,line) > 0) {
+		line = ""
+	} else if (regexpr(loop,line) > 0) {
+		line = sub(loop,"\\1",line)
 	} else if (regexpr(testa,line) > 0) {
-		line = sub(testa,"\\1\\2\\3 ->",line)
+		line = sub(testa,"\\1\\2if (\\3)",line)
 	} else if (regexpr(testb,line) > 0) {
-		l = sub(testb,"\\3",line)
-		l = algo(l)
-		line = paste(sub(testb,"\\1\\2 ->\n\\1",line),l,sep="\t")
-	} else if (regexpr(alt,line) > 0) {
-		line = sub(alt,"\\1/",line)
+		l = algo(sub(testb,"\\3",line))
+		line = paste(sub(testb,"\\1if (\\2)\n\\1",line),l,sep="\t")
 	} else if (regexpr(call,line) > 0) {
 		s = regmatches(line,regexec(call,line))[[1]]
-		args = findargs(s[3])
+		s[3] = gsub("(^|,)\\w=","",s[3])
+		args = findarrays(s[3])
 		line = sprintf("%s(%s)",s[2],paste(args,collapse=","))
 	} else if (regexpr(seta,line) > 0) {
 		s = regmatches(line,regexec(seta,line))[[1]]
-		ops = findops(s[length(s)])
+		ops = findarrays(s[length(s)])
 
 		# attention : 2 et 3 doivent être contigüs
 		line = sprintf("%s <- %s",paste(s[2:3],collapse=""),
@@ -431,7 +402,8 @@ rewrite = function(flines)
 
 	texte = paste(flines,collapse="\n")
 	texte = stripbang(texte)
-	for (re in lre) texte = gsub(re[1],re[2],perl=re[3],texte,useBytes=TRUE)
+	for (re in lre)
+		texte = gsub(re[1],re[2],texte,ignore.case=TRUE,perl=re[3],useBytes=TRUE)
 	stopifnot(regexpr("\\t| \n",texte) < 0)
 
 	texte = deloop(texte)
@@ -445,51 +417,52 @@ rewrite = function(flines)
 		for (i in seq(along=flines)) flines[i] = sub("^ *","",flines[i])
 	} else if (Gtabs >= 3) {
 		flines = reindent(flines)
+		stopifnot(all(regexpr("^ *\\t* +|\n",flines) < 0))
+
 		if (Gwidth > 10) flines = resize(flines)
 	}
 
-	stopifnot(any(regexpr("\n ",flines) < 0))
+	stopifnot(all(regexpr("^ ",flines) < 0))
 	flines
 }
 
 getdoc = function(flines)
 {
 	texte = paste(flines,collapse="\n")
-	if (regexpr("(^|\n)\\s*(sub)?module|program\\s",texte,ignore.case=TRUE) > 0) {
-		texte = gsub("(^|\n)\\s*(sub)?module|program\\s(.*)\n\\s*contains\\s.+",
-			"\\3",texte,ignore.case=TRUE)
-		flines = unlist(strsplit(texte,"\n+"))
-		flines = grep("^!",flines,value=TRUE)
-	} else if (regexpr("(^|\n)\\s*(subroutine|[^\n!]*function)\\s",texte,
-		ignore.case=TRUE) > 0) {
-		doc = gsub("(^|\n)\\s*(subroutine|[^\n!]*function)\\s(?!!\\*{3,5} \\*\\w+)((![^\n]+\n+)+)",
-			"\\1\\3",texte,ignore.case=TRUE,perl=TRUE)
-		flines = unlist(strsplit(doc,"\n+"))
-	} else {
-		stop("contenu Fortran non reconnu")
-	}
+	tt1 = tt2 = ""
 
-	flines = grep("!+((dir|dec|pgi)\\$|\\$|[ ~=*_+-]*$)",flines,
+	unit = "(^|\\s+)(module|program)\\s(.+)\n\\s*(contains|end)\\>"
+	ire = regexec(unit,texte,ignore.case=TRUE)
+	if (ire[[1]][1] > 0) tt1 = regmatches(texte,ire)[[1]][4]
+
+	doc = "\n *!\\*{3,5} \\*\\w+[^\n]+(\n+ *![^\n]+)+"
+	ire = gregexpr(doc,texte,ignore.case=TRUE)
+	if (ire[[1]][1] > 0) tt2 = regmatches(texte,ire)[[1]]
+
+	lines = unlist(strsplit(paste(tt1,tt2,sep="\n"),"\n+"))
+	lines = grep("^ *!",lines,value=TRUE)
+	lines = grep("^ *!+((dir|dec|pgi)\\$|\\$|[ ~=*_+-]*$)",lines,
 		ignore.case=TRUE,invert=TRUE,value=TRUE)
-	gsub("^! *"," ",flines)
+
+	gsub("^ *! *","",lines)
 }
 
 getalgo = function(flines)
 {
 	flines = rewrite(flines)
 
-	subin = "^\\t*(subroutine|(?!end).*function) "
+	subin = "^\\t*(subroutine|(?!end)[^\n!]*function)\\b"
 	subout = "^\\t*end (subroutine|function)\\>"
-	isin = isin2 = FALSE
+	isin1 = isin2 = FALSE
 	for (i in seq(along=flines)) {
-		# isin2 (avant) : sin and (isin2 or entering) and not outing
-		# isin : (isin or entering) and (isin2 or not outing)
-		isin2 = isin && (isin2 || regexpr(subin,flines[i],perl=TRUE) > 0) &&
+		# isin2 (avant) : isin1 and (isin2 or entering) and not outing
+		# isin1 : (isin1 or entering) and (isin2 or not outing)
+		isin2 = isin1 && (isin2 || regexpr(subin,flines[i],perl=TRUE) > 0) &&
 			regexpr(subout,flines[i]) < 0
-		isin = (isin || regexpr(subin,flines[i],perl=TRUE) > 0) &&
+		isin1 = (isin1 || regexpr(subin,flines[i],perl=TRUE) > 0) &&
 			(isin2 || regexpr(subout,flines[i]) < 0)
 
-		if (! isin) {
+		if (! isin1) {
 			flines[i] = ""
 			next
 		}
@@ -497,7 +470,11 @@ getalgo = function(flines)
 		flines[i] = algo(flines[i])
 	}
 
-	strsplit(paste(flines,collapse="\n"),split="\n+")[[1]]
+	stopifnot(! isin1 && ! isin2)
+
+	texte = paste(flines,collapse="\n")
+	texte = gsub("(\n\\t*)(do\n+\\t*)+","\\1loop: ",texte)
+	strsplit(texte,split="\n+")[[1]]
 }
 
 getcall = function(flines)
@@ -514,7 +491,7 @@ lre = lapply(lre,change)
 vars = read.table(sprintf("%s/rename.txt",fortrans),header=TRUE)
 vars$used = sprintf("[^%%]\\<%s\\>",vars$used)
 vars = cbind(vars,
-	decl=sprintf("\n *\\<%s\\>[^\n]*::[^\n]*\\<%s\\>",types,vars$old),
+	decl=sprintf("\n *\\<(%s)\\>[^\n]*::[^\n]*\\<%s\\>",types,vars$old),
 	asso=sprintf("\n *associate\\([^\n]*\\<%s=>",vars$old),
 	occ=sprintf("([^%%])\\<%s\\>",vars$old),replace=sprintf("\\1%s",vars$new))
 
@@ -577,7 +554,7 @@ for (i in seq(along=ficin)) {
 if (! is.null(ficout0)) {
 	for (i in seq(along=ficout))
 		cat("! from",ficin[i],"\n\n",file=ficout[i],append=TRUE)
-	if (file.exists(ficout0)) file.remove(ficout0)
+
 	invisible(file.append(ficout0,ficout))
 }
 
