@@ -135,8 +135,6 @@ set -e
 dirin=$(echo $dirin | sed -re 's:/+$::')
 dirout=$(echo $dirout | sed -re 's:/+$::')
 
-[ -f $dirout ] && rm -v $dirout
-
 if [ -f $dirin ]
 then
 	echo "Total $dirin : 1 fichier Fortran 90"

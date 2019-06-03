@@ -149,6 +149,41 @@ rename = function(texte,used,decl,asso,occ,replace)
 	texte
 }
 
+arrd = "([a-z]\\w*)\\([^()]+\\)"
+
+declarassume = function(flines)
+{
+	ind = grep(",intent\\((in|out|inout)\\).*::",flines)
+	for (i in ind) {
+		s = sub(".+:: *","",flines[i])
+		ms = regmatches(s,gregexpr(arrd,s))[[1]]
+		if (length(ms) == 0) next
+
+		ms = gsub("(\\(|,)[^,()]+","\\1:",ms)
+		flines[i] = sub(s,paste(ms,collapse=","),flines[i],fixed=TRUE)
+	}
+
+	flines
+}
+
+declarn = "(\n *(?:real|integer|logical)\\>[^\n]*::) *([^\n]+)(\\1 *([^\n]+))"
+
+declarmerge = function(texte)
+{
+	# texte n'est pas mangé, tt est rempli par le début de texte modifié
+	repeat {
+		ire = regexec(declarn,texte)
+		if (ire[[1]][1] < 0) break
+
+		s = regmatches(texte,ire)[[1]]
+		s1 = sprintf("%s %s,%s",s[2],s[3],s[5],s[1])
+
+		texte = sub(s[1],s1,texte,fixed=TRUE)
+	}
+
+	texte
+}
+
 stripasso = function(asso,texte)
 {
 	s = sub("^ *associate *\\(([^\n]+)\\).*","\\1",asso)
@@ -278,7 +313,7 @@ splitLine = function(s,ntab=1)
 		resplits = c("\\.or\\.","\\.and\\.",",")
 	} else if (regexpr("^\\t*if *\\(.+\\) *\\w+.+",s) > 0) {
 		ms = regmatches(s,regexec("^(\\t*if *\\(.+\\)) *(\\w+.+)",s))[[1]]
-		if (nchar(ms[3])+(nt+1)*(Gtabs-1) > Gwidth) {
+		if (nchar(ms[3])+(nt+1)*Gtabs > Gwidth) {
 			s2 = paste(paste(rep("\t",nt+1),collapse=""),ms[3],sep="")
 			s = sprintf("%s then\n%s\n%send if",ms[2],splitLine(s2),
 				paste(rep("\t",nt),collapse=""))
@@ -408,9 +443,11 @@ rewrite = function(flines)
 
 	texte = deloop(texte)
 	texte = deif(texte)
+	texte = declarmerge(texte)
 	texte = with(vars,rename(texte,used,decl,asso,occ,replace))
 
 	flines = strsplit(texte,"\n")[[1]]
+	flines = declarassume(flines)
 	flines = cleanasso(flines)
 
 	if (Gtabs == 0) {
@@ -530,6 +567,7 @@ if (file.exists(cargs$ficout) && file.info(cargs$ficout)$isdir) {
 } else if (length(ficin) > 1) {
 	ficout = tempfile(fileext=rep(".f90",length(ficin)))
 	ficout0 = cargs$ficout
+	for (i in seq(along=ficout)) cat("\n! from",ficin[i],":\n",file=ficout[i])
 } else {
 	ficout = cargs$ficout
 }
@@ -551,11 +589,6 @@ for (i in seq(along=ficin)) {
 	writeLines(texte,ficout[i])
 }
 
-if (! is.null(ficout0)) {
-	for (i in seq(along=ficout))
-		cat("! from",ficin[i],"\n\n",file=ficout[i],append=TRUE)
-
-	invisible(file.append(ficout0,ficout))
-}
+if (! is.null(ficout0)) invisible(file.append(ficout0,ficout))
 
 cat("Lignes",cargs$ficin,":",nout,"/",nin,"(=",round(nout/nin*100),"%)\n")
