@@ -149,16 +149,55 @@ rename = function(texte,used,decl,asso,occ,replace)
 	texte
 }
 
-arrd = "([a-z]\\w*)\\([^()]+\\)"
+arrayd = "([a-z]\\w*)\\([^()]+\\)"
+blocks = "\\(\\w+%yrdim%nprom\\w+(,([^,]+)*),\\w+%yrdim%ngpblks\\)"
+dums = sprintf("^ *%s\\>.*,intent\\(%s\\)",rep(c("integer","logical","real"),
+	each=3),c("in","inout","out"))
+
+ordergroup = function(ind,flines)
+{
+	# ind est mangé, les éléments placés sont ajoutés dans indo
+	indo = integer()
+
+	while (length(ind) > 1) {
+		# assure des groupes continus de 'intent' (donc dans une même routine)
+		if (all(diff(ind) == 1)) {
+			ig = length(ind)
+		} else {
+			ig = min(which(diff(ind) > 1))
+		}
+
+		indg = ind[1:ig]
+		ii = unlist(lapply(dums,grep,flines[indg]))
+		if (length(ii) > 0) {
+			indo = c(indo,c(indg[-ii],indg[ii]))
+		} else {
+			indo = c(indo,indg)
+		}
+
+		ind = ind[-(1:ig)]
+	}
+
+	# et le reste éventuel de ind
+	c(indo,ind)
+}
 
 declarassume = function(flines)
 {
 	ind = grep(",intent\\((in|out|inout)\\).*::",flines)
+
+	indo = ordergroup(ind,flines)
+	flines[ind] = flines[indo]
+
 	for (i in ind) {
 		s = sub(".+:: *","",flines[i])
-		ms = regmatches(s,gregexpr(arrd,s))[[1]]
+		ms = regmatches(s,gregexpr(arrayd,s))[[1]]
 		if (length(ms) == 0) next
 
+		# remplace (nprom?,*,ngpblks) par (ngptot,*)
+		#ms = gsub(blocks,"(ngptot\\1)",ms)
+
+		# conversion 'assumed-shape'
 		ms = gsub("(\\(|,)[^,()]+","\\1:",ms)
 		flines[i] = sub(s,paste(ms,collapse=","),flines[i],fixed=TRUE)
 	}
@@ -170,7 +209,8 @@ declarn = "(\n *(?:real|integer|logical)\\>[^\n]*::) *([^\n]+)(\\1 *([^\n]+))"
 
 declarmerge = function(texte)
 {
-	# texte n'est pas mangé, tt est rempli par le début de texte modifié
+	# texte n'est pas mangé
+
 	repeat {
 		ire = regexec(declarn,texte)
 		if (ire[[1]][1] < 0) break
@@ -182,6 +222,11 @@ declarmerge = function(texte)
 	}
 
 	texte
+}
+
+stripblocks = function(flines)
+{
+	gsub("([a-z]\\w*)\\([^()]*,[ik]bl\\)","\\1",flines)
 }
 
 stripasso = function(asso,texte)
@@ -329,6 +374,9 @@ splitLine = function(s,ntab=1)
 	} else if (regexpr(" = ",s) > 0) {
 		splits = c("+","-","*","/")
 		resplits = c("\\+","-","\\*","/")
+	} else if (regexpr(",intent\\(\\w+\\)",s) > 0) {
+		splits = c("),",",")
+		resplits = c("\\),",",")
 	} else if (regexpr(" :: ",s) > 0) {
 		return(s)
 	} else {
@@ -443,11 +491,16 @@ rewrite = function(flines)
 
 	texte = deloop(texte)
 	texte = deif(texte)
-	texte = declarmerge(texte)
 	texte = with(vars,rename(texte,used,decl,asso,occ,replace))
 
 	flines = strsplit(texte,"\n")[[1]]
 	flines = declarassume(flines)
+
+	texte = paste(flines,collapse="\n")
+	texte = declarmerge(texte)
+	flines = strsplit(texte,"\n")[[1]]
+	#flines = stripblocks(flines)
+
 	flines = cleanasso(flines)
 
 	if (Gtabs == 0) {
