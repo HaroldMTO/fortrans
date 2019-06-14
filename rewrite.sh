@@ -22,6 +22,7 @@ Arguments :
 	WIDTH : taille maximale des lignes Fortran en sortie (90 par défaut)
 	-doc : ne retenir des fichiers Fortran que les commentaires
 	-algo : ne retenir des fichiers Fortran que l'algorithme
+	-v : mode verbeux, affiche le nom de chaque fichier traitÃ©
 	-h : affiche cette aide et termine le programme
 
 Détails :
@@ -61,7 +62,8 @@ dirout=""
 ext=""
 tabs=3
 width=90
-opt=rewrite
+opt="rewrite"
+verbose="FALSE"
 help=0
 
 if [ $# -eq 0 ]
@@ -93,10 +95,13 @@ do
 			shift
 			;;
 		-doc)
-			opt=doc
+			opt="doc"
 			;;
 		-algo)
-			opt=algo
+			opt="algo"
+			;;
+		-v)
+			verbose="TRUE"
 			;;
 		-h)
 			help=1
@@ -139,7 +144,7 @@ if [ -f $dirin ]
 then
 	echo "Total $dirin : 1 fichier Fortran 90"
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout" \
-		ext=$ext opt="$opt" width=$width tabs=$tabs
+		ext=$ext opt="$opt" width=$width tabs=$tabs verbose=$verbose
 elif [ -d $dirin ]
 then
 	tmp=$(mktemp --tmpdir=/tmp)
@@ -163,7 +168,7 @@ then
 	do
 		[ -d $dirout ] && ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
-			ext=$ext opt="$opt" width=$width tabs=$tabs
+			ext=$ext opt="$opt" width=$width tabs=$tabs verbose=$verbose
 	done < $tmpdd
 
 	unlink $tmp

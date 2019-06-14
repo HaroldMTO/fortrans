@@ -318,6 +318,12 @@ reindent = function(lignes)
 		if (regexpr(nul,lignes[i]) > 0) {
 			next
 		} else if (regexpr(inc,lignes[i]) > 0) {
+			if (regexpr("#if(n?def)?\\>",lignes[i]) > 0) {
+				tab0 = tab
+			} else if (regexpr("#else",lignes[i]) > 0) {
+				tab = tab0
+			}
+
 			tabi = 0
 		} else if (regexpr(comm,lignes[i]) > 0 || regexpr(mproc,lignes[i]) > 0) {
 			tabi = tab
@@ -353,9 +359,10 @@ splitLine = function(s,ntab=1)
 	nt = nchar(sub("^(\\t*).+","\\1",s))
 	if (nchar(s)+(Gtabs-1)*nt <= Gwidth) return(s)
 
-	if (regexpr("^\\t*if *\\(.+\\) *then\\>",s) > 0) {
+	if (regexpr("^\\t*!",s) > 0) {
+		return(s)
+	} else if (regexpr("^\\t*if *\\(.+\\) *then\\>",s) > 0) {
 		splits = c(".or.",".and.",",")
-		resplits = c("\\.or\\.","\\.and\\.",",")
 	} else if (regexpr("^\\t*if *\\(.+\\) *\\w+.+",s) > 0) {
 		ms = regmatches(s,regexec("^(\\t*if *\\(.+\\)) *(\\w+.+)",s))[[1]]
 		if (nchar(ms[3])+(nt+1)*Gtabs > Gwidth) {
@@ -367,35 +374,32 @@ splitLine = function(s,ntab=1)
 		}
 
 		return(s)
+	} else if (regexpr(" =.*\\.(and|x?or|not)\\.",s) > 0) {
+		splits = c(".or.",".and.")
+	} else if (regexpr(" = ",s) > 0) {
+		splits = c("+","-","*","/")
 	} else if (regexpr("^\\t*where *\\(.+\\) +[^=]+=[^=]",s) > 0) {
 		s = sub("^(\\t*where +\\(.+\\)) +([^=]+=[^=])",
 			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+1),collapse="")),s)
 		return(s)
-	} else if (regexpr(" = ",s) > 0) {
-		splits = c("+","-","*","/")
-		resplits = c("\\+","-","\\*","/")
-	} else if (regexpr(",intent\\(\\w+\\)",s) > 0) {
-		splits = c("),",",")
-		resplits = c("\\),",",")
-	} else if (regexpr(" :: ",s) > 0) {
-		return(s)
 	} else {
 		splits = c("),",",")
-		resplits = c("\\),",",")
 	}
 
-	for (i in seq(along=splits)) {
-		l = strsplit(s,resplits[i])[[1]]
-		ind = which(cumsum(nchar(l)+nchar(splits[i]))+(Gtabs-1)*nt < Gwidth)
-		if (length(ind)) break
-	}
-
+	resplits = gsub("([]^|().+*?${}[])","\\\\\\1",splits)
+	split = paste(resplits,collapse="|")
+	nx = max(nchar(splits))
+	l = strsplit(s,split)[[1]]
+	ind = which(cumsum(nchar(l)+nx)+(Gtabs-1)*nt <= Gwidth)
 	if (length(ind) == 0) return(s)
 
-	s1 = sprintf("%s%s&\n",paste(l[ind],collapse=splits[i]),splits[i])
-	s2 = sprintf("%s%s",paste(rep("\t",nt+ntab),collapse=""),
-		paste(l[-ind],collapse=splits[i]))
-
+	lre = gsub("([]^|().+*?${}[])","\\\\\\1",l[ind])
+	patt = sprintf("(%s(?:%s))(.*)",paste(lre,collapse=sprintf("(?:%s)",split)),
+		split)
+	ire = regexec(patt,s)
+	ms = regmatches(s,ire)[[1]]
+	s1 = sprintf("%s&\n",ms[2])
+	s2 = sprintf("%s%s",paste(rep("\t",nt+ntab),collapse=""),ms[length(ms)])
 	s2 = splitLine(s2,0)
 
 	paste(s1,s2,sep="")
@@ -591,14 +595,16 @@ args = strsplit(commandArgs(trailingOnly=TRUE),split="=")
 cargs = lapply(args,function(x) unlist(strsplit(x[-1],split=":")))
 names(cargs) = sapply(args,function(x) x[1])
 
-if (cargs$opt == "doc") {
+if (is.null(cargs$opt) || cargs$opt == "rewrite") {
+	action = rewrite
+} else if (cargs$opt == "doc") {
 	action = getdoc
 } else if (cargs$opt == "algo") {
 	action = getalgo
 } else if (cargs$opt == "call") {
 	action = getcall
 } else {
-	action = rewrite
+	stop("action '",cargs$opt,"' inconnue")
 }
 
 Gwidth = 90
@@ -606,6 +612,9 @@ if ("width" %in% names(cargs)) Gwidth = as.integer(cargs$width)
 
 Gtabs = 3
 if ("tabs" %in% names(cargs)) Gtabs = as.integer(cargs$tabs)
+
+verbose = FALSE
+if (! is.null(cargs$verbose)) verbose = as.logical(cargs$verbose)
 
 if (file.info(cargs$ficin)$isdir) {
 	if (nchar(cargs$ext)) ext = sprintf("\\.%s$",cargs$ext)
@@ -630,6 +639,7 @@ stopifnot(length(ficin) == length(ficout))
 nin = nout = 0
 
 for (i in seq(along=ficin)) {
+	if (verbose) cat(ficin[i],"\n")
 	flines = readLines(ficin[i])
 	flines = toUTF8(flines)
 
