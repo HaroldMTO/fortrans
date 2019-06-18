@@ -19,9 +19,9 @@
 # suppression espaces de fin de ligne
  +(\n|$);\1
 
-# suppression commentaires Fortran 90 (lignes entieres non vides)
+# suppression commentaires Fortran 90 (lignes entières non vides)
 (^|\n)(?: *!+\n+)+;\1\n
-(^|\n)(?: *!(?! *((dec|dir|pgi)\$|\$omp))[^\n]+\n*)+;\1;TRUE
+(^|\n)(?: *!(?! *((dec|dir|pgi)\$|\$omp|\$!))[^\n]+\n*)+;\1;TRUE
 
 # suppression commentaires Fortran 90 (fin de ligne)
 (^|\n)((?: *[^\n! ]+)+) *!+[^\n]*;\1\2

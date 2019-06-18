@@ -69,6 +69,30 @@ stripbang = function(texte)
 	paste(tt,texte,sep="")
 }
 
+commamp = "(^|\n)\\s*!(?! *((dec|dir|pgi)\\$|\\$omp))([^\n]*&)+"
+
+stripamp = function(texte)
+{
+	# texte est mangé, tt est rempli par le début de texte modifié
+	tt = ""
+
+	repeat {
+		ire = regexec(commamp,texte,perl=TRUE)
+		if (ire[[1]][1] < 0) break
+
+		s = regmatches(texte,ire)[[1]]
+
+		s1 = gsub("&","/",s[1])
+
+		deb = substr(texte,1,regstop(ire[[1]]))
+		deb = sub(s[1],s1,deb,fixed=TRUE)
+		tt = paste(tt,deb,sep="")
+		texte = substring(texte,regstop(ire[[1]])+1)
+	}
+
+	paste(tt,texte,sep="")
+}
+
 # indices de boucles scalaires uniquement, pas d'étiquette
 arre = "[a-z]\\w*(%\\w+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
 indo = sprintf("(\n *)do (\\w+)=(\\w+),(\\w+)\n(%s =[^\n]+)\n *end do.*?\n",
@@ -149,7 +173,7 @@ rename = function(texte,used,decl,asso,occ,replace)
 	texte
 }
 
-arrayd = "([a-z]\\w*)\\([^()]+\\)"
+arrayd = "([a-z]\\w*)(\\([^()]+\\))?"
 blocks = "\\(\\w+%yrdim%nprom\\w+(,([^,]+)*),\\w+%yrdim%ngpblks\\)"
 dums = sprintf("^ *%s\\>.*,intent\\(%s\\)",rep(c("integer","logical","real"),
 	each=3),c("in","inout","out"))
@@ -489,6 +513,7 @@ rewrite = function(flines)
 
 	texte = paste(flines,collapse="\n")
 	texte = stripbang(texte)
+	texte = stripamp(texte)
 	for (re in lre)
 		texte = gsub(re[1],re[2],texte,ignore.case=TRUE,perl=re[3],useBytes=TRUE)
 	stopifnot(regexpr("\\t| \n",texte) < 0)
@@ -534,11 +559,11 @@ getdoc = function(flines)
 	if (ire[[1]][1] > 0) tt2 = regmatches(texte,ire)[[1]]
 
 	lines = unlist(strsplit(paste(tt1,tt2,sep="\n"),"\n+"))
-	lines = grep("^ *!",lines,value=TRUE)
-	lines = grep("^ *!+((dir|dec|pgi)\\$|\\$|[ ~=*_+-]*$)",lines,
+	lines = grep("^\\s*!",lines,value=TRUE)
+	lines = grep("^\\s*!+((dir|dec|pgi)\\$|\\$[^!]|[ ~=*_+$!/-^]*$)",lines,
 		ignore.case=TRUE,invert=TRUE,value=TRUE)
 
-	gsub("^ *! *","",lines)
+	gsub("^\\s*! *","",lines)
 }
 
 getalgo = function(flines)
