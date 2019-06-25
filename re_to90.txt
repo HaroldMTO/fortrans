@@ -54,6 +54,11 @@
  *(\.lt\.) *; < 
  *(\.gt\.) *; > 
 
+# suppression typage 'real' des entiers, sauf cas de division entière
+(\d+)\.0?_jpr[bd](?!/\(*(\w+%)*[ikn]);\1;TRUE
+(\D)\.0_jpr[bd](?!/\(*(\w+%)*[ikn]);\10;TRUE
+([^.]\d+)_jpr[bd](?!/\(*(\w+%)*[ikn]);\1;TRUE
+
 # espacement association et déclaration f90
 # *=> *;=>
  *: ;: 

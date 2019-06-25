@@ -50,7 +50,12 @@ stripbang = function(texte)
 
 		# suppression des '...' (externes, chaine vide ou non), PUIS suppression
 		# des '' internes (dans cet ordre)
-		s3 = toupper(s[3])
+		if (regexpr("(^|\n)\\s*#\\s*include ",s[1]) < 0) {
+			s3 = toupper(s[3])
+		} else {
+			s3 = s[3]
+		}
+
 		if (regexpr("\"",s3) < 0) {
 			s3 = sub("^'(.*)'$","\"\\1\"",s[3])
 			s3 = gsub("''","'",s3)
@@ -407,7 +412,7 @@ splitLine = function(s,ntab=1)
 			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+1),collapse="")),s)
 		return(s)
 	} else {
-		splits = c("),",",")
+		splits = ","
 	}
 
 	resplits = gsub("([]^|().+*?${}[])","\\\\\\1",splits)
