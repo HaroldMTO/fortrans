@@ -98,7 +98,8 @@
 (\n *(?:\d+ +|\w+ *: *)?do) +([0-9]{1,5}) +(.+)\n+ *\2 +continue\>;\1 \3\nend do
 
 # suppression Dr Hook (use, call et variable z?hook_handle, mais pas les autres)
-\n+ *if *\(lhook\) *(?:then\n+ *)?call +dr_hook *\([^()]+\)[^\n]*(?:\n+ *end *if\>[^\n]*)?;
+\n+ *if *\(lhook\) *call +dr_hook *\([^()]+\)[^\n]*;
+\n+ *if *\(lhook\) *then\n+ *call +dr_hook *\([^()]+\)[^\n]*\n+ *end *if\>[^\n]*;
 
 # suppression espaces multiples en milieu de ligne
 ([^^\n])  +;\1 

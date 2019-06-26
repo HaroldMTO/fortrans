@@ -99,7 +99,7 @@ stripamp = function(texte)
 }
 
 # indices de boucles scalaires uniquement, pas d'étiquette
-arre = "[a-z]\\w*(%\\w+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
+arre = "[a-z][[:alnum:]_]*(%[[:alnum:]_]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
 indo = sprintf("(\n *)do (\\w+)=(\\w+),(\\w+)\n(%s =[^\n]+)\n *end do.*?\n",
 	arre)
 
@@ -178,8 +178,6 @@ rename = function(texte,used,decl,asso,occ,replace)
 	texte
 }
 
-arrayd = "([a-z]\\w*)(\\([^()]+\\))?"
-blocks = "\\(\\w+%yrdim%nprom\\w+(,([^,]+)*),\\w+%yrdim%ngpblks\\)"
 dums = sprintf("^ *%s\\>.*,intent\\(%s\\)",rep(c("integer","logical","real"),
 	each=3),c("in","inout","out"))
 
@@ -210,6 +208,9 @@ ordergroup = function(ind,flines)
 	# et le reste éventuel de ind
 	c(indo,ind)
 }
+
+arrayd = "[a-z][[:alnum:]_]*(\\([^()]+\\))?"
+blocks = "\\(\\w+%yrdim%nprom\\w+(,([^,]+)*),\\w+%yrdim%ngpblks\\)"
 
 declarassume = function(flines)
 {
@@ -421,6 +422,13 @@ splitLine = function(s,ntab=1)
 	l = strsplit(s,split)[[1]]
 	ind = which(cumsum(nchar(l)+nx)+(Gtabs-1)*nt <= Gwidth)
 	if (length(ind) == 0) return(s)
+
+	# pas de coupure de tableaux, fonctions, etc.
+	if (identical(splits,",")) {
+		arr = ",\\<[a-z][[:alnum:]_%]*\\(([^()]+|\\([^()]+\\))+$"
+		while (length(ind) > 1 && regexpr(arr,paste(l[ind],collapse=",")) > 0)
+			ind = ind[-length(ind)]
+	}
 
 	lre = gsub("([]^|().+*?${}[])","\\\\\\1",l[ind])
 	patt = sprintf("(%s(?:%s))(.*)",paste(lre,collapse=sprintf("(?:%s)",split)),
