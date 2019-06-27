@@ -5,7 +5,7 @@
 # - l'ordre des RE importe, du fait de dépendances
 # - RE dont les suivantes sont fortement dépendantes ;
 #  . suppression des tabulations et espaces de fin de ligne
-#  . suppression des commentaires
+#  . suppression des commentaires, sauf directives et, en début de ligne, motif '!$!'
 #  . concaténation des lignes continuées (dangereux si commentaires presents)
 #  . espacement des structures de controle
 
@@ -31,10 +31,11 @@
 \n {5}[1-9&*+];
 
 # suppression d'espaces avant/après virgule, affectations et opérateurs maths
-(\))? *(\*\*|=>|[=,+/*\-]) *(\()?;\1\2\3
+ *(\*\*|=>|[=,+/*\-]) *;\1
 
-# reespacement affectations ('=' ou '=>') en instruction simple
+# reespacement affectations ('=' ou '=>') en instruction simple ou commentaires
 (\n *(?:if *\([^\n]+\) *)?\w+(?:%\w+|\((?:[^\n()=]+|\([^\n()=]+\))+\))*) *(=>?) *;\1 \2 
+(^|\n)( *!\$![^,\n]*?),([^ ]);\1\2, \3
 
 # resuppression d'espaces sur indices boucles do et déclarations
 #(\n *(?:\d+ +|\w+ *: *)*do \w+) *= *;\1=
@@ -91,7 +92,7 @@
 \n+( *(else|contains)\>[^\n]*)\n+;\n\1\n
 
 # suppression lignes vides en fin de structures et espacement 'end'
-\n+( *end) *(do|if|where|select|(sub)?module|function|subroutine|program|interface|type|associate)\>;\n\1 \2
+\n+( *end) *(do|if|where|select|(sub)?module|function|subroutine|program|interface|type|associate)\> *[^\n]*;\n\1 \2
 \n+( *(end|contains))\>;\n\1
 
 # suppression étiquettes structures 'do' Fortran 77
