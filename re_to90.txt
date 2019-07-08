@@ -33,9 +33,8 @@
 # suppression d'espaces avant/après virgule, affectations et opérateurs maths
  *(\*\*|=>|[=,+/*\-]) *;\1
 
-# reespacement affectations ('=' ou '=>') en instruction simple ou commentaires
+# reespacement affectations ('=' ou '=>') en instruction simple
 (\n *(?:if *\([^\n]+\) *)?\w+(?:%\w+|\((?:[^\n()=]+|\([^\n()=]+\))+\))*) *(=>?) *;\1 \2 
-(^|\n)( *!\$![^,\n]*?),([^ ]);\1\2, \3
 
 # resuppression d'espaces sur indices boucles do et déclarations
 #(\n *(?:\d+ +|\w+ *: *)*do \w+) *= *;\1=

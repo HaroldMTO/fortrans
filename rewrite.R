@@ -48,14 +48,13 @@ stripbang = function(texte)
 
 		s = regmatches(texte,ire)[[1]]
 
+		# remplacement provisoire ',' par ',,' et capitalisation éventuelle
+		s3 = gsub(",",",,",s[3])
+		if (regexpr("(^|\n)\\s*(#\\s*include |(open|read) *\\()",s[1]) < 0)
+			s3 = toupper(s3)
+
 		# suppression des '...' (externes, chaine vide ou non), PUIS suppression
 		# des '' internes (dans cet ordre)
-		if (regexpr("(^|\n)\\s*#\\s*include ",s[1]) < 0) {
-			s3 = toupper(s[3])
-		} else {
-			s3 = s[3]
-		}
-
 		if (regexpr("\"",s3) < 0) {
 			s3 = sub("^'(.*)'$","\"\\1\"",s[3])
 			s3 = gsub("''","'",s3)
@@ -74,7 +73,7 @@ stripbang = function(texte)
 	paste(tt,texte,sep="")
 }
 
-commamp = "(^|\n)\\s*!(?! *((dec|dir|pgi)\\$|\\$omp))([^\n]*&)+"
+commamp = "(^|\n)\\s*!(?! *((dec|dir|pgi)\\$|\\$omp))([^\n&,]*(&+|,+))+"
 
 stripamp = function(texte)
 {
@@ -87,7 +86,8 @@ stripamp = function(texte)
 
 		s = regmatches(texte,ire)[[1]]
 
-		s1 = gsub("&","/",s[1])
+		# remplacement provisoire ',' par ',,'
+		s1 = gsub(",",",,",gsub("&+","/",s[1]))
 
 		deb = substr(texte,1,regstop(ire[[1]]))
 		deb = sub(s[1],s1,deb,fixed=TRUE)
@@ -531,6 +531,8 @@ rewrite = function(flines)
 		texte = gsub(re[1],re[2],texte,ignore.case=TRUE,perl=re[3],useBytes=TRUE)
 	stopifnot(regexpr("\\t| \n",texte) < 0)
 
+	# remplacement définitif
+	texte = gsub(",,",", ",texte)
 	texte = deloop(texte)
 	texte = deif(texte)
 	texte = with(vars,rename(texte,used,decl,asso,occ,replace))
