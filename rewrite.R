@@ -261,8 +261,9 @@ stripblocks = function(flines)
 
 stripasso = function(asso,texte)
 {
-	s = sub("^ *associate *\\(([^\n]+)\\).*","\\1",asso)
+	s = sub("^ *associate *\\(([^\n]*)\\).*","\\1",asso)
 	stopifnot(s != asso)
+	if (regexpr("=>",s) < 0) return(asso)
 
 	lind = gregexpr(sprintf("\\w+=>%s",arre),s)
 	pvars = sub("=>.+","",regmatches(s,lind)[[1]])
@@ -282,16 +283,17 @@ cleanasso = function(flines)
 	assoin = "^ *associate *\\("
 	assoout = "^ *end associate\\>"
 
-	ind1 = ind2 = integer()
+	ind1 = ind2 = indsuppr = integer()
 
-	isin1 = isin2 = FALSE
+	wasin1 = isin1 = isin2 = FALSE
 	for (i in seq(along=flines)) {
 		# isin1: (isin1 or entrant) and (isin2 or non sortant)
 		# isin2: (isin2 or entrant) and non sortant
-		isin2 = isin1 && (isin2 || regexpr(assoin,flines[i]) > 0) &&
-			regexpr(assoout,flines[i]) < 0
+		wasin1 = isin1
 		isin1 = (isin1 || regexpr(assoin,flines[i]) > 0) &&
 			(isin2 || regexpr(assoout,flines[i]) < 0)
+		isin2 = wasin1 && (isin2 || regexpr(assoin,flines[i]) > 0) &&
+			regexpr(assoout,flines[i]) < 0
 
 		# niveau 3 non traité (problème pour savoir quand on sort)
 		if (isin2 && length(ind2) > 0 && regexpr(assoin,flines[i]) > 0){
@@ -307,6 +309,9 @@ cleanasso = function(flines)
 		} else if (length(ind2) > 0) {
 			texte = paste(flines[ind2[-1]],collapse="\n")
 			flines[ind2[1]] = stripasso(flines[ind2[1]],texte)
+			if (regexpr("^ *associate *\\( *\\)",flines[ind2[1]]) > 0)
+				indsuppr = c(indsuppr,ind2[1],ind2[length(ind2)]+1)
+
 			ind2 = integer()
 		}
 
@@ -315,12 +320,16 @@ cleanasso = function(flines)
 		} else if (length(ind1) > 0) {
 			texte = paste(flines[ind1[-1]],collapse="\n")
 			flines[ind1[1]] = stripasso(flines[ind1[1]],texte)
+			if (regexpr("^ *associate *\\( *\\)",flines[ind1[1]]) > 0)
+				indsuppr = c(indsuppr,ind1[1],ind1[length(ind1)]+1)
+
 			ind1 = integer()
 		}
 	}
 
 	stopifnot(! isin1 && ! isin2)
 
+	if (length(indsuppr) > 0) flines = flines[-indsuppr]
 	flines
 }
 
