@@ -2,7 +2,7 @@ old								new			used
 (jrof|jstglo|jist|jlon)		jp				jp
 jlev								jl				jl
 jgfl								jf				jf
-([ik]st(art|glo)?|kidia)			k1				k1
+([ik]st(art|glo)?|kidia)	k1				k1
 ([ik]end|kprof|kfdia)		k2				k2
 nfldslb([12])					nfb\2			nfb[12]
 ncurrent_iter					iter			iter

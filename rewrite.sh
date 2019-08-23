@@ -11,8 +11,8 @@ Description :
 considérés Fortran 90.
 
 Syntaxe :
-	$(basename $0) -i DIRIN -o DIROUT [-ext EXT] [-tabs TABS] [-width WIDTH] \
-[-doc|-algo] [-h]
+	$(basename $0) -i DIRIN -o DIROUT [-file] [-ext EXT] [-tabs TABS] \
+[-width WIDTH] [-doc|-algo] [-h]
 
 Arguments :
 	DIRIN : fichier ou répertoire de fichiers Fortran 90
@@ -20,6 +20,7 @@ Arguments :
 	EXT : extension de fichier Fortran
 	TABS : 'taille' des tabulations (3 par défaut)
 	WIDTH : taille maximale des lignes Fortran en sortie (90 par défaut)
+	-file : creer des fichiers plutot que des repertoires
 	-doc : ne retenir des fichiers Fortran que les commentaires
 	-algo : ne retenir des fichiers Fortran que l'algorithme
 	-v : mode verbeux, affiche le nom de chaque fichier traitÃ©
@@ -59,6 +60,7 @@ Dépendances :
 
 dirin=""
 dirout=""
+tree=1
 ext=""
 tabs=3
 width=90
@@ -81,6 +83,9 @@ do
 		-o)
 			dirout=$2
 			shift
+			;;
+		-file)
+			tree=0
 			;;
 		-ext)
 			ext=$(echo $2 | sed -re 's:^\.::' -e 's:([^\])\.:\1\\.:g')
@@ -142,7 +147,8 @@ dirout=$(echo $dirout | sed -re 's:/+$::')
 
 if [ -f $dirin ]
 then
-	echo "Total $dirin : 1 fichier Fortran 90"
+	echo "Total $dirin : 1 fichier Fortran 90 Ã  traiter"
+	[ ! -e $dirout -a $tree -eq 1 ] && mkdir -p $dirout
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout" \
 		ext=$ext opt="$opt" width=$width tabs=$tabs verbose=$verbose
 elif [ -d $dirin ]
@@ -159,14 +165,21 @@ then
 		ext="(F|[fF]90)"
 	fi
 
-	echo "Total $dirin : $(wc -l $tmp | awk '{print $1}') fichiers Fortran 90"
+	echo "Total $dirin : $(wc -l $tmp | awk '{print $1}') fichiers Fortran 90 \
+ Ã  traiter"
 	sed -re 's:(.+)/.+:\1:' $tmp | sort -u > $tmpdd
 
-	[ ! -d $dirout ] && ddout=$dirout
+	if [ ! -d $dirout ]
+	then
+		[ $tree -eq 1 -o $(wc -l $tmpdd | awk '{print $1}') -gt 1 ] &&
+			mkdir -p $dirout || ddout=$dirout
+	fi
 
 	while read ddin
 	do
 		[ -d $dirout ] && ddout=$(echo $ddin | sed -re "s:$dirin:$dirout:")
+		[ $verbose = "TRUE" ] && echo ". traitement $ddin -> $ddout"
+		[ ! -e $ddout -a $tree -eq 1 ] && mkdir -p $ddout
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
 			ext=$ext opt="$opt" width=$width tabs=$tabs verbose=$verbose
 	done < $tmpdd

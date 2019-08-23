@@ -672,6 +672,9 @@ if (file.info(cargs$ficin)$isdir) {
 	ficin = cargs$ficin
 }
 
+if (! file.exists(cargs$ficout))
+	dir.create(dirname(cargs$ficout),showWarnings=FALSE,recursive=TRUE)
+
 ficout0 = NULL
 if (file.exists(cargs$ficout) && file.info(cargs$ficout)$isdir) {
 	ficout = paste(cargs$ficout,basename(ficin),sep="/")
@@ -688,7 +691,7 @@ stopifnot(length(ficin) == length(ficout))
 nin = nout = 0
 
 for (i in seq(along=ficin)) {
-	if (verbose) cat(ficin[i],"\n")
+	if (verbose) cat(ficin[i],"->",ficout[i],"\n")
 	flines = readLines(ficin[i])
 	flines = toUTF8(flines)
 
