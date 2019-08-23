@@ -55,9 +55,10 @@
  *(\.gt\.) *; > 
 
 # suppression typage 'real' des entiers, sauf cas de division entière
-(\d+)\.0?_jpr[bdh](?!/\(*(\w+%)*[ikn]);\1;TRUE
-(\D)\.0_jpr[bdh](?!/\(*(\w+%)*[ikn]);\10;TRUE
-([^.]\d+)_jpr[bdh](?!/\(*(\w+%)*[ikn]);\1;TRUE
+(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|\d)(\d+)\.0?(_jpr[bdh])?(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\1;TRUE
+(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|\d)\.0(_jpr[bdh])?(?!\)*/\(*(\d+|(\w+%)*[ijkn]));0;TRUE
+(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|\.|\w)(\d+)_jpi[bm](?!\)*/\(*(\d+|(\w+%)*[ijkn]));\3;TRUE
+(?!\b(sqrt|exp|log)\()real\((\(*(\d+|(\w+%)*[ijkn]\w*)[^,]*),jpr[bdh]\)(?!\)*/\(*(\d+|(\w+%)*[ijkn]));(\3);TRUE
 
 # espacement association et déclaration f90
 # *=> *;=>
@@ -82,9 +83,10 @@
 \((\([^()"']+\))\);\1
 (\n *(\w+(\([^()"']+\))?|%)+) *= *\(([^()"'/][^()"']+)\) *\n;\1 = \4\n
 
-# début d'unités de programme et interfaces + fonctions
+# espacement début d'unités de programme et interfaces + fonctions
 (^|\n)\n* *(program|(sub)?module|associate|(((im)?pure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+)\n+;\1\n\2 \8\n
 (^|\n)\n* *((((im)?pure|elemental|recursive|(integer|real|double precision|character|complex|logical|type|class)(\*\d+|\([^()]+\))?) +)*function)\> +([^\n]+)\n+;\1\n\2 \8\n
+\n *(contains|abstract +interface)\> +([^\n]+)\n+;\1\n\2 \8\n
 
 # début et alternatives de structures de contrôle
 (\n *(\d+ +|\w+ *: *)*((do|select)\>[^\n]*|if\>[^\n]+\) *then\>|where\> *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n+;\1\n
