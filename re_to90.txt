@@ -14,7 +14,7 @@
 \t; 
 
 # suppression include interface
-\n *#include +\"[^\n]*\.intfb\.h\";
+\n *#include +\"[^\n"']*\.h\";
 
 # suppression espaces de fin de ligne
  +(\n|$);\1
@@ -54,11 +54,10 @@
  *(\.lt\.) *; < 
  *(\.gt\.) *; > 
 
-# suppression typage 'real' des entiers, sauf cas de division entière
-(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|\d)(\d+)\.0?(_jpr[bdh])?(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\1;TRUE
-(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|\d)\.0(_jpr[bdh])?(?!\)*/\(*(\d+|(\w+%)*[ijkn]));0;TRUE
-(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|\.|\w)(\d+)_jpi[bm](?!\)*/\(*(\d+|(\w+%)*[ijkn]));\3;TRUE
-(?!\b(sqrt|exp|log)\()real\((\(*(\d+|(\w+%)*[ijkn]\w*)[^,]*),jpr[bdh]\)(?!\)*/\(*(\d+|(\w+%)*[ijkn]));(\3);TRUE
+# suppression typage 'real' des entiers constants, sauf cas de division entière
+(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\()\b(\d+)\.0*_jpr[bdh](?!\)*/\(*(\d+|(\w+%)*[ijkn]));\3;TRUE
+(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|\w)\.0+(_jpr[bdh])?\b(?!\)*/\(*(\d+|(\w+%)*[ijkn]));0;TRUE
+(?!\b(sqrt|exp|log)\()\breal\((\(*(\d+|(\w+%)*[ijkn]\w*)[^,]*),jpr[bdh]\)(?!\)*/\(*(\d+|(\w+%)*[ijkn]));(\3);TRUE
 
 # espacement association et déclaration f90
 # *=> *;=>
