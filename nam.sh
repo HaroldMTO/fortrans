@@ -21,9 +21,7 @@ Arguments:
 
 Details:
 	Files are searched recursively from local directory (find).
-
 	Files are assumed to all be Fortran code files.
-
 	Found files are rewritten by rewrite.sh before namelist extraction from \
 Fortran code files.
 
