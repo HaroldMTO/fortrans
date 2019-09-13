@@ -675,17 +675,15 @@ if (file.info(cargs$ficin)$isdir) {
 if (! file.exists(cargs$ficout))
 	dir.create(dirname(cargs$ficout),showWarnings=FALSE,recursive=TRUE)
 
-ficout0 = NULL
-append = FALSE
 if (file.exists(cargs$ficout) && file.info(cargs$ficout)$isdir) {
 	ficout = paste(cargs$ficout,basename(ficin),sep="/")
-} else if (length(ficin) > 1) {
+	ficout0 = NULL
+	append = FALSE
+} else {
 	ficout = tempfile(fileext=rep(".f90",length(ficin)))
 	ficout0 = cargs$ficout
 	for (i in seq(along=ficout)) cat("\n! from",ficin[i],":\n",file=ficout[i])
 	append = TRUE
-} else {
-	ficout = cargs$ficout
 }
 
 stopifnot(length(ficin) == length(ficout))
