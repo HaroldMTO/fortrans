@@ -148,9 +148,8 @@ dirout=$(echo $dirout | sed -re 's:/+$::')
 if [ -f $dirin ]
 then
 	echo "Total $dirin : 1 fichier Fortran 90 à traiter"
-	[ ! -e $dirout -a $tree -eq 1 ] && mkdir -p $dirout
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout" \
-		ext=$ext opt="$opt" width=$width tabs=$tabs verbose=$verbose
+		opt="$opt" width=$width tabs=$tabs verbose=$verbose
 elif [ -d $dirin ]
 then
 	tmp=$(mktemp --tmpdir=/tmp)
@@ -171,8 +170,13 @@ then
 
 	if [ ! -d $dirout ]
 	then
-		[ $tree -eq 1 -o $(wc -l $tmpdd | awk '{print $1}') -gt 1 ] &&
-			mkdir -p $dirout || ddout=$dirout
+		if [ $tree -eq 1 ]
+		then
+			mkdir -p $dirout
+		else
+			ddout=$dirout
+			[ -s $ddout ] && rm $ddout
+		fi
 	fi
 
 	while read ddin
