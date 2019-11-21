@@ -345,7 +345,7 @@ blocout = "^ *end( +\\w+| *!|$)"
 unit = "program|(sub)?module|(((im)?pure|elemental|recursive) +)*(subroutine|(abstract +)?interface)\\>"
 ftn = sprintf("(((im)?pure|elemental|recursive|(%s)(\\*\\d+|\\([[:alnum:]_=]+\\))?) +)*function\\>",types)
 bloc = "(\\d+ +|\\w+ *: *)*((do|select)\\>|if *\\([^!]+\\) *then\\>|where *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$)"
-bloct = "type *[^(]"
+bloct = "type\\> *[^(]"
 blocin = sprintf("^ *(%s|%s|%s|%s)",unit,ftn,bloc,bloct)
 alter = "^ *(else|contains)\\>"
 
@@ -400,7 +400,7 @@ splitLine = function(s,ntab=1)
 
 	if (regexpr("^\\t*!",s) > 0) {
 		return(s)
-	} else if (regexpr("^\\t*if *\\(.+\\) *then\\>",s) > 0) {
+	} else if (regexpr("^\\t*(if *\\()?.+\\) *then\\>",s) > 0) {
 		splits = c(".or.",".and.",",")
 	} else if (regexpr("^\\t*if *\\(.+\\) *\\w+.+",s) > 0) {
 		ms = regmatches(s,regexec("^(\\t*if *\\(.+\\)) *(\\w+.+)",s))[[1]]
@@ -413,9 +413,9 @@ splitLine = function(s,ntab=1)
 		}
 
 		return(s)
-	} else if (regexpr(" =.*\\.(and|x?or|not)\\.",s) > 0) {
+	} else if (regexpr("^\\t*(.+ = )?.*\\w+.*\\.(and|or)\\.",s) > 0) {
 		splits = c(".or.",".and.")
-	} else if (regexpr(" = ",s) > 0) {
+	} else if (regexpr("^\\t*(.+ = )?.+[+*/-]",s) > 0) {
 		splits = c("+","-","*","/")
 	} else if (regexpr("^\\t*where *\\(.+\\) +[^=]+=[^=]",s) > 0) {
 		s = sub("^(\\t*where +\\(.+\\)) +([^=]+=[^=])",
