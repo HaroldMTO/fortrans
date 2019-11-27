@@ -55,9 +55,10 @@
  *(\.gt\.) *; > 
 
 # suppression typage 'real' des entiers constants, sauf cas de division entière
-(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)\b(\d+)\.0*_jpr[bdh](?!\)*/\(*(\d+|(\w+%)*[ijkn]));\5;TRUE
-(?!\b(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*|\w)\.0+(_jpr[bdh])?\b(?!\)*/\(*(\d+|(\w+%)*[ijkn]));0;TRUE
-(?!\b(sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)\breal\((\(*(\d+|(\w+%)*[ijkn]\w*)[^,]*),jpr[bdh]\)(?!\)*/\(*(\d+|(\w+%)*[ijkn]));(\4);TRUE
+([ =+*-])(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)(\d+)\.0*(_jpr[bdh])?\b(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\1\6;TRUE
+([ =+*-])(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)\.0+(_jpr[bdh])?\b(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\10;TRUE
+([ =+*-])(?!(sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)real\((\(*(\d+|(\w+%)*[ijkn]\w*)[^,]*),jpr[bdh]\)(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\1(\5);TRUE
+([ =+/*(-])\((\d+)\);\1\2
 
 # espacement association et déclaration f90
 # *=> *;=>
@@ -88,24 +89,26 @@
 \n *(contains|abstract +interface)\> +([^\n]+\n)\n*;\1\n\2 \8
 
 # début et alternatives de structures de contrôle
-(\n *(\d+ +|\w+ *: *)?(if *\([^\n]+\) *then\>|(do|select)\>[^\n]*|where *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\))\n)\n+;\1
-\n+( *(else|contains)\>[^\n]*\n)\n*;\n\1
+(\n *(#if(n?def)?\>[^\n]+|(\d+ +|\w+ *: *)?(if *\([^\n]+\) *then\>|(do|select)\>[^\n]*|where *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n)\n+;\1
+\n+( *(#?else|contains)\>[^\n]*\n)\n*;\n\1
 
 # suppression lignes vides en fin de structures et espacement 'end'
 \n+( *end) *(do|if|where|select|(sub)?module|function|subroutine|program|interface|type|associate)\> *[^\n]*;\n\1 \2
-\n+( *(end|contains))\>;\n\1
+\n+( *(#endif|end|contains))\>;\n\1
 
 # suppression étiquettes structures 'do' Fortran 77
 (\n *(?:\d+ +|\w+ *: *)?do) +([0-9]{1,5}) +(.+)\n+ *\2 +continue\>;\1 \3\nend do
 
-# suppression Dr Hook (use, call et variable z?hook_handle, mais pas les autres)
-\n+ *if *\(lhook\) *call +dr_hook *\([^()]+\)[^\n]*;
-\n+ *if *\(lhook\) *then\n+ *call +dr_hook *\([^()]+\)[^\n]*\n+ *end *if\>[^\n]*;
+# suppression Dr Hook (call et variable z?hook_handle, mais pas les autres)
+\n *if *\(lhook\) *call +dr_hook *\([^()]+\)[^\n]*;
+\n *if *\(lhook\) *then\n+ *call +dr_hook *\([^()]+\)[^\n]*\n+ *end *if\>[^\n]*;
+\n *real\([^\n]+\)( +:: +)?(z?hook_handle[0-9]?|,)+\n;
+\n *use +yomhook[^\n]+;
 
 # suppression espaces multiples en milieu de ligne
 ([^^\n])  +;\1 
 
 # suppression lignes vides multiples (début, fin et milieu de fichier)
 ^[\n ]+;
-[\n ]+$;\n
+[\n ]*$;\n
 \n[\n ]+\n;\n\n

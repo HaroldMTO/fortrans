@@ -342,10 +342,10 @@ comm = "^ *!"
 mproc = "^ *module +procedure\\> +"
 blocass = "^ *end +associate\\>"
 blocout = "^ *end( +\\w+| *!|$)"
-unit = "program|(sub)?module|(((im)?pure|elemental|recursive) +)*(subroutine|(abstract +)?interface)\\>"
-ftn = sprintf("(((im)?pure|elemental|recursive|(%s)(\\*\\d+|\\([[:alnum:]_=]+\\))?) +)*function\\>",types)
-bloc = "(\\d+ +|\\w+ *: *)*((do|select)\\>|if *\\([^!]+\\) *then\\>|where *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$)"
-bloct = "type\\> *[^(]"
+unit = "program|(sub)?module|(((im)?pure|elemental|recursive) +)*(subroutine|(abstract +)?interface)\\b"
+ftn = sprintf("(((im)?pure|elemental|recursive|(%s)(\\*\\d+|\\([[:alnum:]_=]+\\))?) +)*function +",types)
+bloc = "(\\d+ +|\\w+ *: *)*((do|select)\\b|if *\\([^!]+\\) *then\\b|where *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$)"
+bloct = "type\\b(?! +is +| *\\()"
 blocin = sprintf("^ *(%s|%s|%s|%s)",unit,ftn,bloc,bloct)
 alter = "^ *(else|contains)\\>"
 
@@ -374,7 +374,7 @@ reindent = function(lignes)
 		} else if (regexpr(alter,lignes[i]) > 0) {
 			if (tab == 0) warning("tab nul avant alter :",lignes[i])
 			if (tab > 0) tabi = tab - 1
-		} else if (regexpr(blocin,lignes[i]) > 0) {
+		} else if (regexpr(blocin,lignes[i],perl=TRUE) > 0) {
 			tabi = tab
 			tab = tab + 1
 		} else if (regexpr(tag,lignes[i]) > 0) {
