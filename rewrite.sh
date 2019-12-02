@@ -142,6 +142,8 @@ fi
 
 set -e
 
+type R 2>/dev/null || module load intel R >/dev/null 2>&1
+
 dirin=$(echo $dirin | sed -re 's:/+$::')
 dirout=$(echo $dirout | sed -re 's:/+$::')
 

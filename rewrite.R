@@ -389,7 +389,7 @@ reindent = function(lignes)
 	lignes
 }
 
-splitLine = function(s,ntab=1)
+splitLine = function(s,ntab=1,call=FALSE,lassign=FALSE)
 {
 	# après changement de caractère d'indentation (' ' -> '\t')
 
@@ -404,23 +404,31 @@ splitLine = function(s,ntab=1)
 		splits = c(".or.",".and.",",")
 	} else if (regexpr("^\\t*if *\\(.+\\) *\\w+.+",s) > 0) {
 		ms = regmatches(s,regexec("^(\\t*if *\\(.+\\)) *(\\w+.+)",s))[[1]]
-		if (nchar(ms[3])+(nt+1)*Gtabs > Gwidth) {
-			s2 = paste(paste(rep("\t",nt+1),collapse=""),ms[3],sep="")
-			s = sprintf("%s then\n%s\n%send if",ms[2],splitLine(s2),
+		if (nchar(ms[2])+(Gtabs-1)*nt+5 > Gwidth ||
+			nchar(ms[3])+(nt+1)*Gtabs > Gwidth) {
+			s2 = sprintf("%s then",ms[2])
+			s3 = paste(paste(rep("\t",nt+1),collapse=""),ms[3],sep="")
+			s = sprintf("%s\n%s\n%send if",splitLine(s2),splitLine(s3),
 				paste(rep("\t",nt),collapse=""))
 		} else {
 			s = sprintf("%s&\n%s%s",ms[2],paste(rep("\t",nt+1),collapse=""),ms[3])
 		}
 
 		return(s)
-	} else if (regexpr("^\\t*(.+ = )?.*\\w+.*\\.(and|or)\\.",s) > 0) {
-		splits = c(".or.",".and.")
-	} else if (regexpr("^\\t*(.+ = )?.+[+*/-]",s) > 0) {
-		splits = c("+","-","*","/")
 	} else if (regexpr("^\\t*where *\\(.+\\) +[^=]+=[^=]",s) > 0) {
 		s = sub("^(\\t*where +\\(.+\\)) +([^=]+=[^=])",
 			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+1),collapse="")),s)
 		return(s)
+	} else if (call ||
+		regexpr("^\\t*(call +\\w|print\\>|(open|read|write) *\\(.+\\))",s) > 0) {
+		splits = ","
+		call = TRUE
+	} else if (lassign ||
+		regexpr("^\\t*(.+ = )?(\\(+|\\.not\\.)*\\w+.*\\.(and|or)\\.",s) > 0) {
+		splits = c(".or.",".and.")
+		lassign = TRUE
+	} else if (regexpr("^\\t*(.+ = )?(\\(+|[+-])*\\w+.*[+*/-]",s) > 0) {
+		splits = c("+","-","*","/")
 	} else {
 		splits = ","
 	}
@@ -446,9 +454,8 @@ splitLine = function(s,ntab=1)
 	ms = regmatches(s,ire)[[1]]
 	s1 = sprintf("%s&\n",ms[2])
 	s2 = sprintf("%s%s",paste(rep("\t",nt+ntab),collapse=""),ms[length(ms)])
-	s2 = splitLine(s2,0)
 
-	paste(s1,s2,sep="")
+	paste(s1,splitLine(s2,0,call,lassign),sep="")
 }
 
 resize = function(lignes)

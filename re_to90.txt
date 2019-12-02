@@ -55,7 +55,7 @@
  *(\.gt\.) *; > 
 
 # suppression typage 'real' des entiers constants, sauf cas de division entière
-([ =+*-])(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)(\d+)\.0*(_jpr[bdh])?\b(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\1\6;TRUE
+([ =+*-])(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)(\d+)\.0*(_jpr[bdh])?\b(?!x?or|and|n?eqv|\)*/\(*(\d+|(\w+%)*[ijkn]));\1\6;TRUE
 ([ =+*-])(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)\.0+(_jpr[bdh])?\b(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\10;TRUE
 ([ =+*-])(?!(sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)real\((\(*(\d+|(\w+%)*[ijkn]\w*)[^,]*),jpr[bdh]\)(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\1(\5);TRUE
 ([ =+/*(-])\((\d+)\);\1\2
