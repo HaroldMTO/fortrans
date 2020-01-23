@@ -48,10 +48,8 @@ stripbang = function(texte)
 
 		s = regmatches(texte,ire)[[1]]
 
-		# remplacement provisoire ',' par ',;' et capitalisation éventuelle
+		# remplacement provisoire ',' par ',;' (protection ',' en chaines)
 		s3 = gsub(",",",;",s[3])
-		if (regexpr("(^|\n+)\\s*(#\\s*include |(open|read|write) *\\()",s[1]) < 0)
-			s3 = toupper(s3)
 
 		# suppression des '...' (externes, chaine vide ou non), PUIS suppression
 		# des '' internes (dans cet ordre)
@@ -66,14 +64,27 @@ stripbang = function(texte)
 
 		deb = substr(texte,1,regstop(ire[[1]]))
 		deb = sub(s[1],s1,deb,fixed=TRUE)
-		tt = paste(tt,deb,sep="")
+
+		# substr sur deb car avant ire[[1]][3], deb=texte
+		if (ire[[1]][3] == 1) {
+			deb0 = ""
+		} else if (Glower) {
+			deb0 = tolower(substr(deb,1,ire[[1]][3]-1))
+		} else {
+			deb0 = substr(deb,1,ire[[1]][3]-1)
+		}
+
+		deb1 = substring(deb,ire[[1]][3])
+		tt = paste(tt,deb0,deb1,sep="")
 		texte = substring(texte,regstop(ire[[1]])+1)
 	}
+
+	if (Glower) texte = tolower(texte)
 
 	paste(tt,texte,sep="")
 }
 
-commamp = "(^|\n)\\s*!(?! *((dec|dir|pgi)\\$|\\$omp))([^\n&,]*(&+|,+))+"
+commamp = "(^|\n)\\s*!(?! *((dec|dir|pgi)\\$|\\$omp))([^\n&,]*[&,]+)+"
 
 stripamp = function(texte)
 {
@@ -81,12 +92,12 @@ stripamp = function(texte)
 	tt = ""
 
 	repeat {
-		ire = regexec(commamp,texte,perl=TRUE)
+		ire = regexec(commamp,texte,perl=TRUE,ignore.case=TRUE)
 		if (ire[[1]][1] < 0) break
 
 		s = regmatches(texte,ire)[[1]]
 
-		# remplacement provisoire ',' par ',;'
+		# remplacement provisoire ',' par ',;' (protection ',' en comm)
 		s1 = gsub(",",",;",gsub("&+","/",s[1]))
 
 		deb = substr(texte,1,regstop(ire[[1]]))
@@ -99,7 +110,7 @@ stripamp = function(texte)
 }
 
 # indices de boucles scalaires uniquement, pas d'étiquette
-arre = "[a-z][[:alnum:]_]*(%[[:alnum:]_]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
+arre = "[a-z]\\w*(%\\w+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
 indo = sprintf("(\n *)do (\\w+)=(\\w+),(\\w+)\n(%s =[^\n]+)\n *end do.*?\n",
 	arre)
 
@@ -110,7 +121,7 @@ deloop = function(texte)
 	has.loops = FALSE
 
 	repeat {
-		ire = regexec(indo,texte)
+		ire = regexec(indo,texte,ignore.case=TRUE)
 		if (ire[[1]][1] < 0) break
 
 		s = regmatches(texte,ire)[[1]]
@@ -150,7 +161,7 @@ deif = function(texte)
 	tt = ""
 
 	repeat {
-		ire = regexec(test,texte,perl=TRUE)
+		ire = regexec(test,texte,perl=TRUE,ignore.case=TRUE)
 		if (ire[[1]][1] < 0) break
 
 		s = regmatches(texte,ire)[[1]]
@@ -169,10 +180,11 @@ deif = function(texte)
 rename = function(texte,used,decl,asso,occ,replace)
 {
 	for (i in seq(along=used)) {
-		if (regexpr(used[i],texte) > 0 || (regexpr(decl[i],texte) < 0 &&
-			regexpr(asso[i],texte) < 0)) next
+		if (regexpr(used[i],texte,ignore.case=TRUE) > 0 ||
+			(regexpr(decl[i],texte,ignore.case=TRUE) < 0 &&
+			regexpr(asso[i],texte,ignore.case=TRUE) < 0)) next
 
-		texte = gsub(occ[i],replace[i],texte)
+		texte = gsub(occ[i],replace[i],texte,ignore.case=TRUE)
 	}
 
 	texte
@@ -195,7 +207,7 @@ ordergroup = function(ind,flines)
 		}
 
 		indg = ind[1:ig]
-		ii = unlist(lapply(dums,grep,flines[indg]))
+		ii = unlist(lapply(dums,grep,flines[indg],ignore.case=TRUE))
 		if (length(ii) > 0) {
 			indo = c(indo,c(indg[-ii],indg[ii]))
 		} else {
@@ -209,23 +221,23 @@ ordergroup = function(ind,flines)
 	c(indo,ind)
 }
 
-arrayd = "[a-z][[:alnum:]_]*(\\([^()]+\\))?"
+arrayd = "[a-z]\\w*(\\([^()]+\\))?"
 blocks = "\\(\\w+%yrdim%nprom\\w+(,([^,]+)*),\\w+%yrdim%ngpblks\\)"
 
 declarassume = function(flines)
 {
-	ind = grep(",intent\\((in|out|inout)\\).*::",flines)
+	ind = grep(",intent\\((in|out|inout)\\).*::",flines,ignore.case=TRUE)
 
 	indo = ordergroup(ind,flines)
 	flines[ind] = flines[indo]
 
 	for (i in ind) {
 		s = sub(".+:: *","",flines[i])
-		ms = regmatches(s,gregexpr(arrayd,s))[[1]]
+		ms = regmatches(s,gregexpr(arrayd,s,ignore.case=TRUE))[[1]]
 		if (length(ms) == 0) next
 
 		# remplace (nprom?,*,ngpblks) par (ngptot,*)
-		#ms = gsub(blocks,"(ngptot\\1)",ms)
+		#ms = gsub(blocks,"(ngptot\\1)",ms,ignore.case=TRUE)
 
 		# conversion 'assumed-shape'
 		ms = gsub("(\\(|,)[^,()]+","\\1:",ms)
@@ -242,11 +254,11 @@ declarmerge = function(texte)
 	# texte n'est pas mangé
 
 	repeat {
-		ire = regexec(declarn,texte)
+		ire = regexec(declarn,texte,ignore.case=TRUE)
 		if (ire[[1]][1] < 0) break
 
 		s = regmatches(texte,ire)[[1]]
-		s1 = sprintf("%s %s,%s",s[2],s[3],s[5],s[1])
+		s1 = sprintf("%s %s,%s",s[2],s[3],s[5])
 
 		texte = sub(s[1],s1,texte,fixed=TRUE)
 	}
@@ -256,12 +268,12 @@ declarmerge = function(texte)
 
 stripblocks = function(flines)
 {
-	gsub("([a-z]\\w*)\\([^()]*,[ik]bl\\)","\\1",flines)
+	gsub("([a-z]\\w*)\\([^()]*,[ik]bl\\)","\\1",flines,ignore.case=TRUE)
 }
 
 stripasso = function(asso,texte)
 {
-	s = sub("^ *associate *\\(([^\n]*)\\).*","\\1",asso)
+	s = sub("^ *associate *\\(([^\n]*)\\).*","\\1",asso,ignore.case=TRUE)
 	stopifnot(s != asso)
 	if (regexpr("=>",s) < 0) return(asso)
 
@@ -282,6 +294,7 @@ cleanasso = function(flines)
 {
 	assoin = "^ *associate *\\("
 	assoout = "^ *end associate\\>"
+	assovide = "^ *associate *\\( *\\)"
 
 	ind1 = ind2 = indsuppr = integer()
 
@@ -290,13 +303,15 @@ cleanasso = function(flines)
 		# isin1: (isin1 or entrant) and (isin2 or non sortant)
 		# isin2: (isin2 or entrant) and non sortant
 		wasin1 = isin1
-		isin1 = (isin1 || regexpr(assoin,flines[i]) > 0) &&
-			(isin2 || regexpr(assoout,flines[i]) < 0)
-		isin2 = wasin1 && (isin2 || regexpr(assoin,flines[i]) > 0) &&
-			regexpr(assoout,flines[i]) < 0
+		isin1 = (isin1 || regexpr(assoin,flines[i],ignore.case=TRUE) > 0) &&
+			(isin2 || regexpr(assoout,flines[i],ignore.case=TRUE) < 0)
+		isin2 = wasin1 &&
+			(isin2 || regexpr(assoin,flines[i],ignore.case=TRUE) > 0) &&
+			regexpr(assoout,flines[i],ignore.case=TRUE) < 0
 
 		# niveau 3 non traité (problème pour savoir quand on sort)
-		if (isin2 && length(ind2) > 0 && regexpr(assoin,flines[i]) > 0){
+		if (isin2 && length(ind2) > 0 &&
+			regexpr(assoin,flines[i],ignore.case=TRUE) > 0) {
 			isin1 = FALSE
 			isin2 = FALSE
 			break
@@ -309,7 +324,7 @@ cleanasso = function(flines)
 		} else if (length(ind2) > 0) {
 			texte = paste(flines[ind2[-1]],collapse="\n")
 			flines[ind2[1]] = stripasso(flines[ind2[1]],texte)
-			if (regexpr("^ *associate *\\( *\\)",flines[ind2[1]]) > 0)
+			if (regexpr(assovide,flines[ind2[1]],ignore.case=TRUE) > 0)
 				indsuppr = c(indsuppr,ind2[1],ind2[length(ind2)]+1)
 
 			ind2 = integer()
@@ -320,7 +335,7 @@ cleanasso = function(flines)
 		} else if (length(ind1) > 0) {
 			texte = paste(flines[ind1[-1]],collapse="\n")
 			flines[ind1[1]] = stripasso(flines[ind1[1]],texte)
-			if (regexpr("^ *associate *\\( *\\)",flines[ind1[1]]) > 0)
+			if (regexpr(assovide,flines[ind1[1]],ignore.case=TRUE) > 0)
 				indsuppr = c(indsuppr,ind1[1],ind1[length(ind1)]+1)
 
 			ind1 = integer()
@@ -357,24 +372,25 @@ reindent = function(lignes)
 		if (regexpr(nul,lignes[i]) > 0) {
 			next
 		} else if (regexpr(inc,lignes[i]) > 0) {
-			if (regexpr("#if(n?def)?\\>",lignes[i]) > 0) {
+			if (regexpr("#if(n?def)?\\>",lignes[i],ignore.case=TRUE) > 0) {
 				tab0 = tab
-			} else if (regexpr("#else",lignes[i]) > 0) {
+			} else if (regexpr("#else",lignes[i],ignore.case=TRUE) > 0) {
 				tab = tab0
 			}
 
 			tabi = 0
-		} else if (regexpr(comm,lignes[i]) > 0 || regexpr(mproc,lignes[i]) > 0) {
+		} else if (regexpr(comm,lignes[i]) > 0 || regexpr(mproc,lignes[i],
+			ignore.case=TRUE) > 0) {
 			tabi = tab
-		} else if (regexpr(blocass,lignes[i]) < 0 &&
-			regexpr(blocout,lignes[i]) > 0) {
+		} else if (regexpr(blocass,lignes[i],ignore.case=TRUE) < 0 &&
+			regexpr(blocout,lignes[i],ignore.case=TRUE) > 0) {
 			if (tab == 0) warning("tab nul avant blocout :",lignes[i])
 			if (tab > 0) tab = tab - 1
 			tabi = tab
-		} else if (regexpr(alter,lignes[i]) > 0) {
+		} else if (regexpr(alter,lignes[i],ignore.case=TRUE) > 0) {
 			if (tab == 0) warning("tab nul avant alter :",lignes[i])
 			if (tab > 0) tabi = tab - 1
-		} else if (regexpr(blocin,lignes[i],perl=TRUE) > 0) {
+		} else if (regexpr(blocin,lignes[i],perl=TRUE,ignore.case=TRUE) > 0) {
 			tabi = tab
 			tab = tab + 1
 		} else if (regexpr(tag,lignes[i]) > 0) {
@@ -400,10 +416,11 @@ splitLine = function(s,ntab=1,call=FALSE,lassign=FALSE)
 
 	if (regexpr("^\\t*!",s) > 0) {
 		return(s)
-	} else if (regexpr("^\\t*(if *\\()?.+\\) *then\\>",s) > 0) {
+	} else if (regexpr("^\\t*(if *\\()?.+\\) *then\\>",s,ignore.case=TRUE) > 0) {
 		splits = c(".or.",".and.",",")
-	} else if (regexpr("^\\t*if *\\(.+\\) *\\w+.+",s) > 0) {
-		ms = regmatches(s,regexec("^(\\t*if *\\(.+\\)) *(\\w+.+)",s))[[1]]
+	} else if (regexpr("^\\t*if *\\(.+\\) *\\w+.+",s,ignore.case=TRUE) > 0) {
+		ire = regexec("^(\\t*if *\\(.+\\)) *(\\w+.+)",s,ignore.case=TRUE)
+		ms = regmatches(s,ire)[[1]]
 		if (nchar(ms[2])+(Gtabs-1)*nt+5 > Gwidth ||
 			nchar(ms[3])+(nt+1)*Gtabs > Gwidth) {
 			s2 = sprintf("%s then",ms[2])
@@ -415,20 +432,24 @@ splitLine = function(s,ntab=1,call=FALSE,lassign=FALSE)
 		}
 
 		return(s)
-	} else if (regexpr("^\\t*where *\\(.+\\) +[^=]+=[^=]",s) > 0) {
+	} else if (regexpr("^\\t*where *\\(.+\\) +[^=]+=[^=]",s,
+		ignore.case=TRUE) > 0) {
 		s = sub("^(\\t*where +\\(.+\\)) +([^=]+=[^=])",
-			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+1),collapse="")),s)
+			sprintf("\\1&\n%s\\2",paste(rep("\t",nt+1),collapse="")),s,
+			ignore.case=TRUE)
 		return(s)
 	} else if (call ||
-		regexpr("^\\t*(call +\\w|print\\>|(open|read|write) *\\(.+\\))",s) > 0) {
+		regexpr("^\\t*(call +\\w|print\\>|(open|read|write) *\\(.+\\)|\\w+.*::)",
+		s,ignore.case=TRUE) > 0) {
 		splits = ","
 		call = TRUE
 	} else if (lassign ||
-		regexpr("^\\t*(.+ = )?(\\(+|\\.not\\.)*\\w+.*\\.(and|or)\\.",s) > 0) {
+		regexpr("^\\t*(.+ = )?(\\(+|\\.not\\.)*\\w+.*\\.(and|or)\\.",s,
+		ignore.case=TRUE) > 0) {
 		splits = c(".or.",".and.")
 		lassign = TRUE
 	} else if (regexpr("^\\t*(.+ = )?(\\(+|[+-])*\\w+.*[+*/-]",s) > 0) {
-		splits = c("+","-","*","/")
+		splits = c("+","-","*","/","=")
 	} else {
 		splits = ","
 	}
@@ -443,8 +464,10 @@ splitLine = function(s,ntab=1,call=FALSE,lassign=FALSE)
 	# pas de coupure de tableaux, fonctions, etc.
 	if (identical(splits,",")) {
 		arr = ",\\<[a-z][[:alnum:]_%]*\\(([^()]+|\\([^()]+\\))+$"
-		while (length(ind) > 1 && regexpr(arr,paste(l[ind],collapse=",")) > 0)
+		while (length(ind) > 1 &&
+			regexpr(arr,paste(l[ind],collapse=","),ignore.case=TRUE) > 0) {
 			ind = ind[-length(ind)]
+		}
 	}
 
 	lre = gsub("([]^|().+*?${}[])","\\\\\\1",l[ind])
@@ -538,8 +561,6 @@ squelette = function(flines)
 
 rewrite = function(flines)
 {
-	flines = tolower(flines)
-
 	texte = paste(flines,collapse="\n")
 	texte = stripbang(texte)
 	texte = stripamp(texte)
@@ -547,8 +568,9 @@ rewrite = function(flines)
 		texte = gsub(re[1],re[2],texte,ignore.case=TRUE,perl=re[3],useBytes=TRUE)
 	stopifnot(regexpr("\\t| \n",texte) < 0)
 
-	# remplacement définitif
+	# remplacement définitif ',;' (fin protection espacement ',')
 	texte = gsub(",;",",",texte)
+
 	texte = deloop(texte)
 	texte = deif(texte)
 	texte = with(vars,rename(texte,used,decl,asso,occ,replace))
@@ -565,7 +587,7 @@ rewrite = function(flines)
 
 	if (Gtabs == 0) {
 		for (i in seq(along=flines)) flines[i] = sub("^ *","",flines[i])
-	} else if (Gtabs >= 3) {
+	} else {
 		flines = reindent(flines)
 		stopifnot(all(regexpr("^ *\\t* +|\n",flines) < 0))
 
@@ -662,6 +684,9 @@ if (is.null(cargs$opt) || cargs$opt == "rewrite") {
 } else {
 	stop("action '",cargs$opt,"' inconnue")
 }
+
+Glower = TRUE
+if ("lower" %in% names(cargs)) Glower = as.logical(cargs$lower)
 
 Gwidth = 90
 if ("width" %in% names(cargs)) Gwidth = as.integer(cargs$width)

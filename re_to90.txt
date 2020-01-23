@@ -14,7 +14,7 @@
 \t; 
 
 # suppression include interface
-\n *#include +\"[^\n"']*\.h\";
+#\n *#include +\"[^\n"']*\.h\";
 
 # suppression espaces de fin de ligne
  +(\n|$);\1
@@ -25,6 +25,11 @@
 
 # suppression commentaires Fortran 90 (fin de ligne)
 (^|\n)((?: *[^\n! ]+)+) *!+[^\n]*;\1\2
+
+# suppression caractères d'ornement (normalement, que dans les chaines)
+ *[?@\~#]{2,} *;
+ *[-+=*]{3,} *;
+ *(\.{4,}|!{4,}) *;
 
 # concaténation des lignes continuées (sur fin de ligne)
 &(?: *![^\n]*)?\n+ *&?(?! *! *((dec|dir|pgi)\$|\$omp)) *;;TRUE
@@ -58,10 +63,13 @@
  *(\.gt\.) *; > 
 
 # suppression typage 'real' des entiers constants, sauf cas de division entière
-([ =+*-])(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)(\d+)\.0*(_jpr[bdh])?\b(?!x?or|and|n?eqv|\)*/\(*(\d+|(\w+%)*[ijkn]));\1\6;TRUE
-([ =+*-])(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)\.0+(_jpr[bdh])?\b(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\10;TRUE
-([ =+*-])(?!(sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn])\)*/\(*)real\((\(*(\d+|(\w+%)*[ijkn]\w*)[^,]*),jpr[bdh]\)(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\1(\5);TRUE
-([ =+/*(-])\((\d+)\);\1\2
+([-=+*] *\(*)(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(+|(\d+|(\w+%)*[ijkn]\w*)\)*/\(*)(\d+)\.0*(_jpr[bdh]\b)?(?!\w|\)*/\(*(\d+|(\w+%)*[ijkn]));\1\6;TRUE
+([-=+*] *\(*)(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(+|(\d+|(\w+%)*[ijkn]\w*)\)*/\(*)\.0+(_jpr[bdh])?\b(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\10;TRUE
+([-=+*] *)(?!(sqrt|exp|log)\(|(\d+|(\w+%)*[ijkn]\w*)\)*/\(*)real\((\(*(\d+|(\w+%)*[ijkn]\w*)[^,]*),jpr[bdh]\)(?!\)*/\(*(\d+|(\w+%)*[ijkn]));\1(\5);TRUE
+([- =+/*(])\((\d+)\);\1\2
+
+# conversion produit carré en exposant
+(\b\w+\b)\*\1(?! *\*\*);\1**2;TRUE
 
 # espacement association et déclaration f90
 # *=> *;=>
@@ -69,10 +77,10 @@
  *:: *([^\n]); :: \1
 ([^=>]) *\.(not|and|x?or|n?eqv)\. *;\1.\2.
 
-# espacement structures de controle
-\<do *(while|concurrent)\>;do \1
+# espacement structures de controle et 'select type'
+\<do *(while|concurrent)\> *\(;do \1 (
 (\n *else) *(if|where)\>;\1 \2
-\<(if|where|while) *\(;\1 (
+\<(if|where|while|(type|class) +is) *\(;\1 (
 
 # espacement déclaration de variables sur types simples avec kind, types dérivées et class ('type(' = declaration variable)
 (\n *(integer|real|double precision|character|complex|logical|type|class)) *\(;\1(
@@ -86,12 +94,12 @@
 \((\([^()"']+\))\);\1
 (\n *(\w+(\([^()"']+\))?|%)+) *= *\(([^()"'/][^()"']+)\) *\n;\1 = \4\n
 
-# espacement début d'unités de programme et interfaces + fonctions
+# suppression lignes vides et espacement début d'unités de programme et interfaces + fonctions
 (^|\n)\n* *(program|(sub)?module|associate|(((im)?pure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+\n)\n*;\1\n\2 \8
 (^|\n)\n* *((((im)?pure|elemental|recursive|(integer|real|double precision|character|complex|logical|type|class)(\*\d+|\([^()]+\))?) +)*function)\> +([^\n]+\n)\n*;\1\n\2 \8
 (\n *)(contains *|abstract +interface\> +[^\n]+)\n*;\1\2\n
 
-# début et alternatives de structures de contrôle
+# suppression lignes vides début et alternatives de structures de contrôle
 (\n *(#if(n?def)?\>[^\n]+|(\d+ +|\w+ *: *)?(if *\([^\n]+\) *then\>|(do|select)\>[^\n]*|where *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n)\n+;\1
 \n+( *(#?else|contains)\>[^\n]*\n)\n*;\n\1
 
@@ -105,11 +113,11 @@
 # suppression Dr Hook (call et variable z?hook_handle, mais pas les autres)
 \n *if *\(lhook\) *call +dr_hook *\([^()]+\)[^\n]*;
 \n *if *\(lhook\) *then\n+ *call +dr_hook *\([^()]+\)[^\n]*\n+ *end *if\>[^\n]*;
-\n *real\([^\n]+\)( +:: +)?(z?hook_handle[0-9]?|,)+\n;
+\n *real\([^\n]+\)( +:: +)?(z?hook_handle[0-9]?|,)+\n;\n
 \n *use +yomhook[^\n]+;
 
 # suppression espaces multiples en milieu de ligne
-([^^\n])  +;\1 
+([^^\n] ) +;\1
 
 # suppression lignes vides multiples (début, fin et milieu de fichier)
 ^[\n ]+;
