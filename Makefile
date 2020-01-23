@@ -14,6 +14,7 @@ install:
 	make $B/rewrite.sh
 	make $B/namdiff.sh
 	make $B/nam.sh
+	make $B/gdiff.sh
 	make $B/varenv.sh
 	if git status >/dev/null 2>&1; then \
 		grep -q $(shell git log -1 --pretty=format:%h 2>/dev/null) $P/version || \
@@ -37,6 +38,9 @@ $B/namdiff.sh: namdiff.sh
 
 $B/nam.sh: nam.sh
 	cp -uv nam.sh $B
+
+$B/gdiff.sh: gdiff.sh
+	cp -uv gdiff.sh $B
 
 $B/varenv.sh: varenv.sh
 	cp -uv varenv.sh $B
