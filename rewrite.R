@@ -192,14 +192,25 @@ rename = function(texte,used,decl,asso,occ,replace)
 
 dums = sprintf("^ *%s\\>.*,intent\\(%s\\)",rep(c("integer","logical","real"),
 	each=3),c("in","inout","out"))
+store = c(",allocatable\\>",",pointer\\>")
 
-ordergroup = function(ind,flines)
+orderstore = function(indg,flines)
+{
+	if (length(indg) == 0) return(indg)
+
+	inds = unlist(lapply(store,grep,flines[indg],ignore.case=TRUE))
+	if (length(inds) == 0) return(indg)
+
+	c(indg[-inds],indg[inds])
+}
+
+ordergroup = function(ind,flines,groups)
 {
 	# ind est mangé, les éléments placés sont ajoutés dans indo
 	indo = integer()
 
 	while (length(ind) > 1) {
-		# assure des groupes continus de 'intent' (donc dans une même routine)
+		# assure des groupes continus de déclarations (donc dans une même routine)
 		if (all(diff(ind) == 1)) {
 			ig = length(ind)
 		} else {
@@ -207,7 +218,8 @@ ordergroup = function(ind,flines)
 		}
 
 		indg = ind[1:ig]
-		ii = unlist(lapply(dums,grep,flines[indg],ignore.case=TRUE))
+		lindg = lapply(groups,grep,flines[indg],ignore.case=TRUE)
+		ii = unlist(lapply(lindg,orderstore,flines[indg]))
 		if (length(ii) > 0) {
 			indo = c(indo,c(indg[-ii],indg[ii]))
 		} else {
@@ -221,6 +233,34 @@ ordergroup = function(ind,flines)
 	c(indo,ind)
 }
 
+locali = sprintf("%s(\\(kind=\\w+\\))?",c("integer","real"))
+locall = "logical"
+localc = "character(\\*|\\(len=(\\*|\\d+)\\))?"
+localt = "(type|class)\\(\\w+\\)"
+locals = c(locali,locall,localc,localt)
+
+orderlocal = function(flines)
+{
+	indi = grep(",intent\\((in|out|inout)\\).*::",flines,ignore.case=TRUE,invert=TRUE)
+
+	re = sprintf("^ *(%s)(,| *::| )",paste(locals,collapse="|"))
+	indl = grep(re,flines[indi],ignore.case=TRUE)
+	i0 = indi[indl[which(diff(indi[indl]) == 2)]+1]
+	if (length(i0) > 0) {
+		stopifnot(all(regexpr("^ *[^!].*$",flines[i0]) < 0))
+
+		flines = flines[-i0]
+		indi = grep(",intent\\((in|out|inout)\\).*::",flines,ignore.case=TRUE,invert=TRUE)
+		indl = grep(re,flines[indi],ignore.case=TRUE)
+	}
+
+	indo = ordergroup(indl,flines[indi],locals)
+
+	flines[indi[indl]] = flines[indi[indo]]
+
+	flines
+}
+
 arrayd = "[a-z]\\w*(\\([^()]+\\))?"
 blocks = "\\(\\w+%yrdim%nprom\\w+(,([^,]+)*),\\w+%yrdim%ngpblks\\)"
 
@@ -228,7 +268,7 @@ declarassume = function(flines)
 {
 	ind = grep(",intent\\((in|out|inout)\\).*::",flines,ignore.case=TRUE)
 
-	indo = ordergroup(ind,flines)
+	indo = ordergroup(ind,flines,dums)
 	flines[ind] = flines[indo]
 
 	for (i in ind) {
@@ -577,6 +617,7 @@ rewrite = function(flines)
 
 	flines = strsplit(texte,"\n")[[1]]
 	flines = declarassume(flines)
+	flines = orderlocal(flines)
 
 	texte = paste(flines,collapse="\n")
 	texte = declarmerge(texte)
@@ -731,6 +772,9 @@ for (i in seq(along=ficin)) {
 
 	flines = action(flines)
 	if (length(flines) == 0) next
+
+	n = length(flines)
+	if (nzchar(flines[n])) flines[n+1] = ""
 
 	nout = nout + length(flines)
 	texte = paste(flines,collapse="\n")
