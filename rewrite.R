@@ -233,9 +233,9 @@ ordergroup = function(ind,flines,groups)
 	c(indo,ind)
 }
 
-locali = sprintf("%s(\\(kind=\\w+\\))?",c("integer","real"))
+locali = sprintf("%s(\\*\\d+|\\(kind=\\w+\\))?",c("integer","real"))
 locall = "logical"
-localc = "character(\\*|\\(len=(\\*|\\d+)\\))?"
+localc = "character(\\*\\d+|\\(len=(\\*|\\d+)\\))?"
 localt = "(type|class)\\(\\w+\\)"
 locals = c(locali,locall,localc,localt)
 
@@ -246,9 +246,12 @@ orderlocal = function(flines)
 	re = sprintf("^ *(%s)(,| *::| )",paste(locals,collapse="|"))
 	indl = grep(re,flines[indi],ignore.case=TRUE)
 	i0 = indi[indl[which(diff(indi[indl]) == 2)]+1]
-	if (length(i0) > 0) {
-		stopifnot(all(regexpr("^ *[^!].*$",flines[i0]) < 0))
 
+	# restriction aux lignes vides ou de commentaires, hors directives CPP
+	i0 = i0[regexpr("^ *($|!(?! *((dec|dir|pgi)\\$|\\$omp|\\$!)))",flines[i0],
+		perl=TRUE,ignore.case=TRUE) > 0]
+
+	if (length(i0) > 0) {
 		flines = flines[-i0]
 		indi = grep(",intent\\((in|out|inout)\\).*::",flines,ignore.case=TRUE,invert=TRUE)
 		indl = grep(re,flines[indi],ignore.case=TRUE)
@@ -287,7 +290,7 @@ declarassume = function(flines)
 	flines
 }
 
-declarn = "(\n *(?:real|integer|logical)\\>[^\n]*::) *([^\n]+)(\\1 *([^\n]+))"
+declarn = "(\n *(?:real|integer|logical|character)\\>[^\n]*::) *([^\n]+)(\\1 *([^\n]+))"
 
 declarmerge = function(texte)
 {
