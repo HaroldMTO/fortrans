@@ -33,9 +33,10 @@ change = function(re)
 
 regstop = function(x) x[1] + attr(x,"match.length")[1] - 1
 
-cont = "& *(!.*?)?\n+ *&?"
-string = sprintf(
-	"(^|\n)(?![^'\"\n!]*!+[^\n]*)[^'\"\n!]+('([^'&]+|''|%s)*'|\"([^\"&]+|\"\"|%s)*\")",cont,cont)
+# pas besoin d'interdire les commentaires : on est hors chaine, commentaire ou continuation
+nocomm = "(?![^'\"\n!]*!+[^\n]*)"
+cont = "& *(![^\n]*)?\n+ *&?"
+string = sprintf("(^|\n)[^'\"\n!&]+('([^'&]+|''|%s)*'|\"([^\"&]+|\"\"|%s)*\")",cont,cont)
 
 stripbang = function(texte)
 {
@@ -43,7 +44,7 @@ stripbang = function(texte)
 	tt = ""
 
 	repeat {
-		ire = regexec(string,texte,perl=TRUE)
+		ire = regexec(string,texte)
 		if (ire[[1]][1] < 0) break
 
 		s = regmatches(texte,ire)[[1]]
@@ -84,7 +85,7 @@ stripbang = function(texte)
 	paste(tt,texte,sep="")
 }
 
-commamp = "(^|\n)\\s*!(?! *((dec|dir|pgi)\\$|\\$omp))([^\n&,]*[&,]+)+"
+commamp = "(^|\n)\\s*!(?! *((dec|dir|pgi)\\$|\\$omp|ocl ))([^\n&,]*[&,]+)+"
 
 stripamp = function(texte)
 {
@@ -233,23 +234,27 @@ ordergroup = function(ind,flines,groups)
 	c(indo,ind)
 }
 
-locali = sprintf("%s(\\*\\d+|\\(kind=\\w+\\))?",c("integer","real"))
-locall = "logical"
-localc = "character(\\*\\d+|\\(len=(\\*|\\d+)\\))?"
-localt = "(type|class)\\(\\w+\\)"
-locals = c(locali,locall,localc,localt)
+locali = sprintf("%s\\>(\\*\\d+\\>|\\(kind=\\w+\\))?",c("integer","real"))
+locall = "logical\\>"
+localc = "character\\>(\\*\\d+\\>|\\(len=(\\*|\\d+)\\))?"
+localt = "(type|class)\\>\\(\\w+\\)"
+locals = sprintf("^ *%s.*::",c(locali,locall,localc,localt))
 
 orderlocal = function(flines)
 {
 	indi = grep(",intent\\((in|out|inout)\\).*::",flines,ignore.case=TRUE,invert=TRUE)
 
-	re = sprintf("^ *(%s)(,| *::| )",paste(locals,collapse="|"))
+	re = paste(locals,collapse="|")
 	indl = grep(re,flines[indi],ignore.case=TRUE)
-	i0 = indi[indl[which(diff(indi[indl]) == 2)]+1]
 
-	# restriction aux lignes vides ou de commentaires, hors directives CPP
-	i0 = i0[regexpr("^ *($|!(?! *((dec|dir|pgi)\\$|\\$omp|\\$!)))",flines[i0],
-		perl=TRUE,ignore.case=TRUE) > 0]
+	# suppression des lignes vides ou de commentaires
+	i0 = indi[indl[which(diff(indi[indl]) == 2)]+1]
+	if (any(regexpr("^ *! *((dec|dir|pgi)\\$|\\$omp|ocl )",flines[i0],
+		ignore.case=TRUE) > 0)) {
+		return(flines)
+	}
+
+	i0 = i0[regexpr("^ *($|!)",flines[i0]) > 0]
 
 	if (length(i0) > 0) {
 		flines = flines[-i0]
@@ -392,6 +397,7 @@ cleanasso = function(flines)
 }
 
 types = "integer|real|double precision|character|complex|logical|type|class"
+subatt = "(im)?pure|elemental|recursive"
 # blocin et blocout dépendent de comm, blocin dépend de blocout
 nul = "^$"
 inc = "^ *#"
@@ -400,11 +406,12 @@ comm = "^ *!"
 mproc = "^ *module +procedure\\> +"
 blocass = "^ *end +associate\\>"
 blocout = "^ *end( +\\w+| *!|$)"
-unit = "program|(sub)?module|(((im)?pure|elemental|recursive) +)*(subroutine|(abstract +)?interface)\\b"
-ftn = sprintf("(((im)?pure|elemental|recursive|(%s)(\\*\\d+|\\([[:alnum:]_=]+\\))?) +)*function +",types)
-bloc = "(\\d+ +|\\w+ *: *)*((do|select)\\b|if *\\([^!]+\\) *then\\b|where *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$)"
-bloct = "type\\b(?! +is +| *\\()"
-blocin = sprintf("^ *(%s|%s|%s|%s)",unit,ftn,bloc,bloct)
+unit = sprintf("program|(sub)?module|((%s) +)*(subroutine|(abstract +)?interface)\\b",subatt)
+ftn = sprintf("((%s|(%s)(\\*\\d+|\\([[:alnum:]_=]+\\))?) +)*function +",subatt,types)
+blocw = "where *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$"
+bloc = sprintf("(\\d+ +|\\w+ *: *)*((do|select)\\>|if *\\([^!]+\\) *then\\>|%s)",blocw)
+blocin = sprintf("^ *(%s|%s|%s)",unit,ftn,bloc)
+bloct = "^ *type\\b(?! +is +| *\\()"
 alter = "^ *(else|contains)\\>"
 
 reindent = function(lignes)
@@ -433,7 +440,8 @@ reindent = function(lignes)
 		} else if (regexpr(alter,lignes[i],ignore.case=TRUE) > 0) {
 			if (tab == 0) warning("tab nul avant alter :",lignes[i])
 			if (tab > 0) tabi = tab - 1
-		} else if (regexpr(blocin,lignes[i],perl=TRUE,ignore.case=TRUE) > 0) {
+		} else if (regexpr(blocin,lignes[i],ignore.case=TRUE) > 0 ||
+			regexpr(bloct,lignes[i],ignore.case=TRUE,perl=TRUE) > 0) {
 			tabi = tab
 			tab = tab + 1
 		} else if (regexpr(tag,lignes[i]) > 0) {
@@ -513,7 +521,7 @@ splitLine = function(s,ntab=1,call=FALSE,lassign=FALSE)
 		}
 	}
 
-	lre = gsub("([]^|().+*?${}[])","\\\\\\1",l[ind])
+	lre = gsub("([]^|()/\\.+*?${}[])","\\\\\\1",l[ind])
 	patt = sprintf("(%s(?:%s))(.*)",paste(lre,collapse=sprintf("(?:%s)",split)),
 		split)
 	ire = regexec(patt,s)
@@ -657,7 +665,7 @@ getdoc = function(flines)
 
 	lines = unlist(strsplit(paste(tt1,tt2,sep="\n"),"\n+"))
 	lines = grep("^\\s*!",lines,value=TRUE)
-	lines = grep("^\\s*!+((dir|dec|pgi)\\$|\\$[^!]|[ ~=*_+$!/-^]*$)",lines,
+	lines = grep("^\\s*!+((dir|dec|pgi)\\$|\\$[^!]|ocl |[ ~=*_+$!/-^]*$)",lines,
 		ignore.case=TRUE,invert=TRUE,value=TRUE)
 
 	gsub("^\\s*! *","",lines)
@@ -716,6 +724,8 @@ if (interactive()) browser()
 args = strsplit(commandArgs(trailingOnly=TRUE),split="=")
 cargs = lapply(args,function(x) unlist(strsplit(x[-1],split=":")))
 names(cargs) = sapply(args,function(x) x[1])
+
+options(warn=2)
 
 if (is.null(cargs$opt) || cargs$opt == "rewrite") {
 	action = rewrite

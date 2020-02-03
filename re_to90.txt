@@ -97,6 +97,15 @@
 \((\([^()"']+\))\);\1
 (\n *(\w+(\([^()"']+\))?|%)+) *= *\(([^()"'/][^()"']+)\) *\n;\1 = \4\n
 
+# suppression étiquettes structures 'do' Fortran 77
+(\n *(?:\d+ +|\w+ *: *)?do) +([0-9]{1,5}) +(.+)\n+ *\2 +continue\>;\1 \3\nend do
+
+# suppression Dr Hook (call et variable z?hook_handle, mais pas les autres)
+\n *if *\(lhook\) *call +dr_hook *\([^()]+\)[^\n]*;
+\n *if *\(lhook\) *then\n+ *call +dr_hook *\([^()]+\)[^\n]*\n+ *end *if\>[^\n]*;
+\n *real\([^\n]+\)( +:: +)?(z?hook_handle[0-9]?|,)+\n;\n
+\n *use +yomhook[^\n]+;
+
 # suppression lignes vides et espacement début d'unités de programme et interfaces + fonctions
 (^|\n)\n* *(program|(sub)?module|associate|(((im)?pure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+\n)\n*;\1\n\2 \8
 (^|\n)\n* *((((im)?pure|elemental|recursive|(integer|real|double precision|character|complex|logical|type|class)(\*\d+|\([^()]+\))?) +)*function)\> +([^\n]+\n)\n*;\1\n\2 \8
@@ -107,22 +116,13 @@
 \n+( *(#?else|contains)\>[^\n]*\n)\n*;\n\1
 
 # suppression lignes vides en fin de structures et espacement 'end'
-\n+( *end) *(do|if|where|select|(sub)?module|function|subroutine|program|interface|type|associate)\> *[^\n]*;\n\1 \2
+\s*\n( *end) *(do|if|where|select|(sub)?module|function|subroutine|program|interface|type|associate)\> *[^\n]*;\n\1 \2
 \n+( *(#endif|end|contains))\>;\n\1
-
-# suppression étiquettes structures 'do' Fortran 77
-(\n *(?:\d+ +|\w+ *: *)?do) +([0-9]{1,5}) +(.+)\n+ *\2 +continue\>;\1 \3\nend do
-
-# suppression Dr Hook (call et variable z?hook_handle, mais pas les autres)
-\n *if *\(lhook\) *call +dr_hook *\([^()]+\)[^\n]*;
-\n *if *\(lhook\) *then\n+ *call +dr_hook *\([^()]+\)[^\n]*\n+ *end *if\>[^\n]*;
-\n *real\([^\n]+\)( +:: +)?(z?hook_handle[0-9]?|,)+\n;\n
-\n *use +yomhook[^\n]+;
 
 # suppression espaces multiples en milieu de ligne
 ([^^\n] ) +;\1
 
 # suppression lignes vides multiples (début, fin et milieu de fichier)
-^[\n ]+;
-[\n ]*$;\n
-\n[\n ]+\n;\n\n
+^\s+;
+\s*$;\n
+\n\s+\n;\n\n
