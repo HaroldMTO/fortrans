@@ -51,8 +51,8 @@
 # suppression d'espaces mot/parenthèse (reespacement if/where/while plus tard)
 (\w) *\(;\1(
 
-# espacement entre parenthèse fermante et mot ou quote
-\) *(\w|["'](?! *\)));) \1;TRUE
+# espacement entre parenthèse fermante et mot ou quote non fermante
+\) *(\w|["'][^\n )]);) \1
 
 # conversion/espacement opérateurs binaires f77
  *(\.eq\.|==) *; == 
@@ -69,7 +69,7 @@
 ([- =+/*(])\((\d+)\);\1\2
 
 # conversion produit carré en exposant
-(\b\w+\b)\*\1(?! *\*\*);\1**2;TRUE
+\b(\w+(%\w+)*(\([^\n()"'\;]+\))?) *\* *\1(?! *\*\*);\1**2;TRUE
 
 # espacement association et déclaration f90
 # *=> *;=>
