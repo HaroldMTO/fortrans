@@ -12,7 +12,7 @@ considérés Fortran 90.
 
 Syntaxe :
 	$(basename $0) -i DIRIN -o DIROUT [-file] [-ext EXT] [-tabs TABS] \
-[-width WIDTH] [-lower] [-doc|-algo] [-h]
+[-width WIDTH] [-lower] [-force] [-doc|-algo] [-h]
 
 Arguments :
 	DIRIN : fichier ou répertoire de fichiers Fortran 90
@@ -22,6 +22,7 @@ Arguments :
 	WIDTH : taille maximale des lignes Fortran en sortie (90 par défaut)
 	-nolower : ne pas minisculiser les instructions Fortran
 	-file : créer des fichiers plutot que des répertoires
+	-force : ne pas convertir les avertissements en erreur
 	-doc : ne retenir des fichiers Fortran que les commentaires
 	-algo : ne retenir des fichiers Fortran que l'algorithme
 	-v : mode verbeux, affiche le nom de chaque fichier traitÃ©
@@ -63,9 +64,10 @@ tree=1
 ext=""
 tabs=3
 width=90
-low="TRUE"
+lower="TRUE"
 opt="rewrite"
 verbose="FALSE"
+force="FALSE"
 help=0
 
 if [ $# -eq 0 ]
@@ -106,7 +108,10 @@ do
 			opt="algo"
 			;;
 		-nolower)
-			low="FALSE"
+			lower="FALSE"
+			;;
+		-force)
+			force="TRUE"
 			;;
 		-v)
 			verbose="TRUE"
@@ -154,7 +159,8 @@ if [ -f $dirin ]
 then
 	echo "Total $dirin : 1 fichier Fortran 90 Ã  traiter"
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout" \
-		opt="$opt" width=$width tabs=$tabs lower=$low verbose=$verbose
+		opt="$opt" width=$width tabs=$tabs lower=$lower verbose=$verbose \
+		force=$force
 elif [ -d $dirin ]
 then
 	tmp=$(mktemp --tmpdir=/tmp)
@@ -190,7 +196,8 @@ then
 		[ $verbose = "TRUE" ] && echo ". traitement $ddin -> $ddout"
 		[ ! -e $ddout -a $tree -eq 1 ] && mkdir -p $ddout
 		R --slave -f $fortrans/rewrite.R --args ficin="$ddin" ficout="$ddout" \
-			ext=$ext opt="$opt" width=$width tabs=$tabs lower=$low verbose=$verbose
+			ext=$ext opt="$opt" width=$width tabs=$tabs lower=$lower \
+			verbose=$verbose force=$force
 	done < $tmpdd
 
 	unlink $tmp

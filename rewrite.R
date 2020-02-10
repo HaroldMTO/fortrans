@@ -35,10 +35,10 @@ regstop = function(x) x[1] + attr(x,"match.length")[1] - 1
 
 # pas besoin d'interdire les commentaires : on est hors chaine, commentaire ou continuation
 nocomm = "(?![^'\"\n!]*!+[^\n]*)"
-cont = "& *(![^\n]*)?\n+ *&?"
+cont = "&( |\\t)*(![^\n]*)?\n\\s*&?"
 string = sprintf("(^|\n)[^'\"\n!&]+('([^'&]+|''|%s)*'|\"([^\"&]+|\"\"|%s)*\")",cont,cont)
 
-stripbang = function(texte)
+stripcont = function(texte)
 {
 	# texte est mangé, tt est rempli par le début de texte modifié
 	tt = ""
@@ -61,7 +61,7 @@ stripbang = function(texte)
 
 		# chaines : fusion lignes continuées, suppression des '!'
 		s1 = sub(s[3],s3,s[1],fixed=TRUE)
-		s1 = gsub("!","",gsub(cont,"",s1))
+		s1 = gsub(cont,"",s1)
 
 		deb = substr(texte,1,regstop(ire[[1]]))
 		deb = sub(s[1],s1,deb,fixed=TRUE)
@@ -85,24 +85,23 @@ stripbang = function(texte)
 	paste(tt,texte,sep="")
 }
 
-commamp = "(^|\n)\\s*!(?! *((dec|dir|pgi)\\$|\\$omp|ocl ))([^\n&,]*[&,]+)+"
+cont2 = "&( |\\t)*(![^\n]*)?\n(\\s+|![^\n]*\n)*&?( |\\s)*"
+inst = sprintf("((^|\n)([^'\"\n!&]+|'([^']+|'')*'|\"([^\"]+|\"\")*\")+)%s",cont2)
 
-stripamp = function(texte)
+mergecont = function(texte)
 {
 	# texte est mangé, tt est rempli par le début de texte modifié
 	tt = ""
 
 	repeat {
-		ire = regexec(commamp,texte,perl=TRUE,ignore.case=TRUE)
+		ire = regexec(inst,texte)
 		if (ire[[1]][1] < 0) break
 
 		s = regmatches(texte,ire)[[1]]
 
-		# remplacement provisoire ',' par ',;' (protection ',' en comm)
-		s1 = gsub(",",",;",gsub("&+","/",s[1]))
-
 		deb = substr(texte,1,regstop(ire[[1]]))
-		deb = sub(s[1],s1,deb,fixed=TRUE)
+		deb = sub(s[1],s[2],deb,fixed=TRUE)
+
 		tt = paste(tt,deb,sep="")
 		texte = substring(texte,regstop(ire[[1]])+1)
 	}
@@ -613,8 +612,8 @@ squelette = function(flines)
 rewrite = function(flines)
 {
 	texte = paste(flines,collapse="\n")
-	texte = stripbang(texte)
-	texte = stripamp(texte)
+	texte = stripcont(texte)
+	texte = mergecont(texte)
 	for (re in lre)
 		texte = gsub(re[1],re[2],texte,ignore.case=TRUE,perl=re[3],useBytes=TRUE)
 	stopifnot(regexpr("\\t| \n",texte) < 0)
@@ -725,7 +724,7 @@ args = strsplit(commandArgs(trailingOnly=TRUE),split="=")
 cargs = lapply(args,function(x) unlist(strsplit(x[-1],split=":")))
 names(cargs) = sapply(args,function(x) x[1])
 
-options(warn=2)
+if ("force" %in% names(cargs) && as.logical(cargs$force)) options(warn=2)
 
 if (is.null(cargs$opt) || cargs$opt == "rewrite") {
 	action = rewrite
