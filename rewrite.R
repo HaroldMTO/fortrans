@@ -85,28 +85,21 @@ stripcont = function(texte)
 	paste(tt,texte,sep="")
 }
 
-cont2 = "&( |\\t)*(![^\n]*)?\n(\\s+|![^\n]*\n)*&?( |\\s)*"
+cont2 = "&( |\\t)*(![^\n]*)?\n(\\s+|![^\n]*\n)*(&( |\\t)*)?"
 inst = sprintf("((^|\n)([^'\"\n!&]+|'([^']+|'')*'|\"([^\"]+|\"\")*\")+)%s",cont2)
 
 mergecont = function(texte)
 {
-	# texte est mangé, tt est rempli par le début de texte modifié
-	tt = ""
-
 	repeat {
 		ire = regexec(inst,texte)
 		if (ire[[1]][1] < 0) break
 
 		s = regmatches(texte,ire)[[1]]
 
-		deb = substr(texte,1,regstop(ire[[1]]))
-		deb = sub(s[1],s[2],deb,fixed=TRUE)
-
-		tt = paste(tt,deb,sep="")
-		texte = substring(texte,regstop(ire[[1]])+1)
+		texte = sub(s[1],s[2],texte,fixed=TRUE)
 	}
 
-	paste(tt,texte,sep="")
+	texte
 }
 
 # indices de boucles scalaires uniquement, pas d'étiquette
