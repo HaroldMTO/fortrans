@@ -112,7 +112,7 @@
 (\n *)(contains *|abstract +interface\> +[^\n]+)\n*;\1\2\n
 
 # suppression lignes vides début et alternatives de structures de contrôle
-(\n *(#if(n?def)?\>[^\n]+|(\d+ +|\w+ *: *)?(if *\([^\n]+\) *then\>|(do|select)\>[^\n]*|where *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n)\n+;\1
+(\n *(#if(n?def)?\>[^\n]+|(\d+ +|\w+ *: *)?(if *\([^\n]+\) *then\>|(do \w+=|select +(case|type)\>|case( *\(| +default\>)|(type|class) +(is *\(|default\>))\>[^\n]*|where *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n)\n+;\1
 \n+( *(#?else|contains)\>[^\n]*\n)\n*;\n\1
 
 # suppression lignes vides en fin de structures et espacement 'end'

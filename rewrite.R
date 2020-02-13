@@ -403,7 +403,8 @@ ftn = sprintf("((%s|(%s)(\\*\\d+|\\([[:alnum:]_=]+\\))?) +)*function +",subatt,t
 blocw = "where *\\(([^()]+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))+\\) *$"
 bloc = sprintf("(\\d+ +|\\w+ *: *)*((do|select)\\>|if *\\([^!]+\\) *then\\>|%s)",blocw)
 blocin = sprintf("^ *(%s|%s|%s)",unit,ftn,bloc)
-bloct = "^ *type\\b(?! +is +| *\\()"
+bloct = "^ *type\\b(?! +(is +\\(|default)| *\\()"
+blocsel = "^ *((type|class) +(is *\\(|default\\>)|case( *\\(| +default\\>))"
 alter = "^ *(else|contains)\\>"
 
 reindent = function(lignes)
@@ -436,6 +437,8 @@ reindent = function(lignes)
 			regexpr(bloct,lignes[i],ignore.case=TRUE,perl=TRUE) > 0) {
 			tabi = tab
 			tab = tab + 1
+		} else if (regexpr(blocsel,lignes[i],ignore.case=TRUE) > 0) {
+			tabi = tab - 1
 		} else if (regexpr(tag,lignes[i]) > 0) {
 			tabi = 0
 		} else {
