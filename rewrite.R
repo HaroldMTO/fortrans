@@ -261,7 +261,7 @@ orderlocal = function(flines)
 	flines
 }
 
-arrayd = "[a-z]\\w*(\\([^()]+\\))?"
+arrayd = "[a-z]\\w*(\\(([^()]+|\\([^()]+\\))+\\))"
 blocks = "\\(\\w+%yrdim%nprom\\w+(,([^,]+)*),\\w+%yrdim%ngpblks\\)"
 
 declarassume = function(flines)
@@ -280,7 +280,7 @@ declarassume = function(flines)
 		#ms = gsub(blocks,"(ngptot\\1)",ms,ignore.case=TRUE)
 
 		# conversion 'assumed-shape'
-		ms = gsub("(\\(|,)[^,()]+","\\1:",ms)
+		ms = gsub("(\\(|,)([^,()]+|\\([^,()]+\\))+","\\1:",ms)
 		flines[i] = sub(s,paste(ms,collapse=","),flines[i],fixed=TRUE)
 	}
 
