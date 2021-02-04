@@ -61,7 +61,7 @@ stripcont = function(texte)
 
 		# chaines : fusion lignes continuées, suppression des '!'
 		s1 = sub(s[3],s3,s[1],fixed=TRUE)
-		s1 = gsub(cont,"",s1)
+		s1 = gsub(" *!+",".",gsub(cont,"",s1))
 
 		deb = substr(texte,1,regstop(ire[[1]]))
 		deb = sub(s[1],s1,deb,fixed=TRUE)
@@ -104,7 +104,7 @@ mergecont = function(texte)
 
 # indices de boucles scalaires uniquement, pas d'étiquette
 arre = "[a-z]\\w*(%\\w+|\\(([^()]+|\\(([^()]+|\\([^()]+\\))+\\))+\\))*"
-indo = sprintf("(\n *)do (\\w+)=(\\w+),(\\w+)\n(%s =[^\n]+)\n *end do.*?\n",
+indo = sprintf("(\n *)do (\\w+)=(\\w+),(\\w+)\n( +%s =[^\n]+)\n *end do.*?\n",
 	arre)
 
 deloop = function(texte)
@@ -120,9 +120,10 @@ deloop = function(texte)
 		s = regmatches(texte,ire)[[1]]
 
 		# unsafe unlooping: out of array or not inner loop
-		# ex: i+ or +i or ,i or z(a(i or f(z(i
-		if (regexpr(sprintf("(,|\\w+\\()\\<%s\\>",s[3]),s[6]) > 0 ||
-			regexpr(sprintf("[^(,]\\<%s\\>[^),]",s[3]),s[6]) > 0) {
+		# ex: i+ or +i or ,i or z(a(i or f(z(i or z(...,a(i
+		if (regexpr(sprintf("(,|(,|\\w+\\()\\w+\\()\\<%s\\>",s[3]),s[6]) > 0 ||
+			regexpr(sprintf("[^(]\\<%s\\>",s[3]),s[6]) > 0 ||
+			regexpr(sprintf("\\(\\<%s\\>[^),]",s[3]),s[6]) > 0) {
 			tt = paste(tt,substr(texte,1,regstop(ire[[1]])),sep="")
 			texte = substring(texte,regstop(ire[[1]])+1)
 			next

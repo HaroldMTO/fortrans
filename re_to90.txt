@@ -31,15 +31,15 @@
  *([*=]{3,}|[-+/]{3,}) *;
  *(\.{4,}|!{4,}) *;
 
-# concaténation des lignes continuées (sur fin de ligne)
+# concaténation des lignes continuées f77 (sur fin de ligne), F90 dans rewrite.R
 #&(?: *![^\n]*)?\n+ *&?(?! *! *((dec|dir|pgi)\$|\$omp)) *;;TRUE
 \n {5}[1-9&*+];
 
 # suppression d'espaces avant/après virgule, affectations et opérateurs maths
  *(\*\*|=>|[=,+/*\-]) *;\1
 
-# reespacement affectations ('=' ou '=>') en instruction simple
-(\n *(?:if *\([^\n]+\) *)?\w+(?:%\w+|\((?:[^\n()=]+|\([^\n()=]+\))+\))*) *(=>?) *;\1 \2 
+# reespacement affectations ('=' ou '=>') en instruction simple ('if' possible devant)
+(\n *(?:if *\([^\n]+\) *)?\w+ *(?:%\w+ *|\((?:[^\n()=]+|\([^\n()=]+\))+\))*) *(=>?) *;\1 \2 
 
 # resuppression d'espaces sur indices boucles do et déclarations
 #(\n *(?:\d+ +|\w+ *: *)*do \w+) *= *;\1=
@@ -59,8 +59,9 @@
  *(\.ne\.|/=) *; \/= 
  *(\.le\.|<=) *; <= 
  *(\.ge\.|>=) *; >= 
- *(\.lt\.) *; < 
- *(\.gt\.) *; > 
+ *(\.lt\.|<) *; < 
+ *\.gt\. *; > 
+([^=]) *> *(\w|\(|[-+]);\1 > \2
 
 # suppression typage 'real' des entiers constants, sauf cas de division entière
 ([-=+*] *\(*)(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(+|(\d+|(\w+%)*[ijkn]\w*)\)*/\(*)(\d+)\.0*(_jpr[bdh]\b)?(?!\w|\)*/\(*(\d+|(\w+%)*[ijkn]));\1\6;TRUE
