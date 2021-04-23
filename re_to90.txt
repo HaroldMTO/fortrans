@@ -24,7 +24,7 @@
 (^|\n)(?: *!(?! *((dec|dir|pgi)\$|\$omp|\$!))[^\n]+)+;;TRUE
 
 # suppression commentaires Fortran 90 (fin de ligne)
-(^|\n)((?: *[^\n! ]+)+) *!+[^\n]*;\1\2
+(^|\n)((?:[^\n!"']+|\"[^"]+\"|\'[^']+\')+?) *!+[^\n]*;\1\2
 
 # suppression caractères d'ornement (normalement, que dans les chaines)
  *[?@\~#]{2,} *;
@@ -54,14 +54,14 @@
 # espacement entre parenthèse fermante et mot ou quote non fermante
 \) *(\w|["'][^\n )]);) \1
 
-# conversion/espacement opérateurs binaires f77
- *(\.eq\.|==) *; == 
- *(\.ne\.|/=) *; \/= 
- *(\.le\.|<=) *; <= 
- *(\.ge\.|>=) *; >= 
+# conversion/espacement opérateurs binaires f77 et f90 (cas particulier pour '>')
  *(\.lt\.|<) *; < 
  *\.gt\. *; > 
-([^=]) *> *(\w|\(|[-+]);\1 > \2
+ *(\.eq\.|= *=) *; == 
+ *(\.ne\.|/ *=) *; \/= 
+ *(\.le\.|< *=) *; <= 
+ *(\.ge\.|> *=) *; >= 
+([^= ]) *> *(\w|\(|[-+]);\1 > \2
 
 # suppression typage 'real' des entiers constants, sauf cas de division entière
 ([-=+*] *\(*)(?!(digits|huge|range|radix|tiny|epsilon|precision|(max|min)exponent|spacing|sqrt|exp|log)\(+|(\d+|(\w+%)*[ijkn]\w*)\)*/\(*)(\d+)\.0*(_jpr[bdh]\b)?(?!\w|\)*/\(*(\d+|(\w+%)*[ijkn]));\1\6;TRUE
@@ -102,10 +102,10 @@
 (\n *(?:\d+ +|\w+ *: *)?do) +([0-9]{1,5}) +(.+)\n+ *\2 +continue\>;\1 \3\nend do
 
 # suppression Dr Hook (call et variable z?hook_handle, mais pas les autres)
-\n *if *\(lhook\) *call +dr_hook *\([^()]+\)[^\n]*;
-\n *if *\(lhook\) *then\n+ *call +dr_hook *\([^()]+\)[^\n]*\n+ *end *if\>[^\n]*;
-\n *real\([^\n]+\)( +:: +)?(z?hook_handle[0-9]?|,)+\n;\n
-\n *use +yomhook[^\n]+;
+#\n *if *\(lhook\) *call +dr_hook *\([^()]+\)[^\n]*;
+#\n *if *\(lhook\) *then\n+ *call +dr_hook *\([^()]+\)[^\n]*\n+ *end *if\>[^\n]*;
+#\n *real\([^\n]+\)( +:: +)?(z?hook_handle[0-9]?|,)+\n;\n
+#\n *use +yomhook[^\n]+;
 
 # suppression lignes vides et espacement début d'unités de programme et interfaces + fonctions
 (^|\n)\n* *(program|(sub)?module|associate|(((im)?pure|elemental|recursive) +)*subroutine|(abstract +)?interface)\> +([^\n]+\n)\n*;\1\n\2 \8
@@ -113,7 +113,7 @@
 (\n *)(contains *|abstract +interface\> +[^\n]+)\n*;\1\2\n
 
 # suppression lignes vides début et alternatives de structures de contrôle
-(\n *(#if(n?def)?\>[^\n]+|(\d+ +|\w+ *: *)?(if *\([^\n]+\) *then\>|(do \w+=|select +(case|type)\>|case( *\(| +default\>)|(type|class) +(is *\(|default\>))\>[^\n]*|where *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n)\n+;\1
+(\n *(#if(n?def)?\>[^\n]+|(\d+ +|\w+ *: *)?(if *\([^\n]+\) *then\>|(do \w+ *=[^\n]+|select +(case|type)\>|case( *\(| +default\>)|(type|class) +(is *\(|default\>))\>[^\n]*|where *\(([^()"']+|(\(([^()"']+|\([^()"']+\))+\))+)+\)))\n)\n+;\1
 \n+( *(#?else|contains)\>[^\n]*\n)\n*;\n\1
 
 # suppression lignes vides en fin de structures et espacement 'end'
