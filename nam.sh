@@ -8,11 +8,14 @@ Description:
 supposed to contain namelist declarations.
 
 Synopsis:
-	$(basename $0) [-ext EXT] [-nofile] [-h]
+	$(basename $0) SRC [-ext EXT] [-nofile] [-v] [-h]
 
 Arguments:
-	-ext : file extension for searching Fortran files containing namelists (as file.EXT)
-	-nofile: find files by file extension only (option '-ext' mandatory)
+	SRC: path from where to (recursively) search for Fortran files containing namelists \
+(default: .)
+	EXT : file extension(s) (see Details) targetting file type(s) to search namelists for
+	-nofile: impede individual files search, only dirs search is performed
+	-v: activate verbose mode
 	-h: displays help and terminates normally
 
 	Files produced are:
@@ -21,8 +24,11 @@ Arguments:
 file. Note: namelist names and variables are sorted out.
 
 Details:
-	Files are searched recursively from local directory (find).
-	Files are assumed to all be Fortran code files.
+	Extension(s) for file search is considered as \*.[EXT] (pattern in find).
+	EXT is a list of colon (':') separated file extensions. Default is 'F90:f90:f'.
+	Files are searched following extension(s) in EXT recursively from path SRC (find).
+	Files targetted by EXT (default or user supplied) are assumed to all be Fortran code \
+files.
 	Found files are rewritten by rewrite.sh before namelist extraction from \
 Fortran code files.
 
@@ -38,91 +44,128 @@ Author:
 "
 }
 
-ext=""
+if echo " $*" | grep -qE ' \-\w*h'
+then
+	usage
+	exit
+fi
+
+src=""
+ext="F90"
 files=1
-help=0
+verbose=0
 keep=0
 
 while [ $# -ne 0 ]
 do
 	case $1 in
 		-ext)
-			ext=$(echo $2 | sed -re 's:^\.::' -e 's:([^\])\.:\1\\.:g')
+			ext=$2
 			shift
 			;;
 		-nofile)
 			files=0
 			;;
-		-h)
-			help=1
+		-v)
+			verbose=1
 			;;
 		-keep)
 			keep=1
 			;;
 		*)
-			echo "$1 : unknown option, ignored" >&2
+			if [ -z "$src" ] && echo $1 | grep -qE '^[[:alnum:]/]'
+			then
+				(cd $1 >/dev/null) || exit 1
+				src=$1
+			else
+				echo "$1 : unknown option, ignored" >&2
+			fi
 			;;
 	esac
 
 	shift
 done
 
-if [ $help -eq 1 ]
-then
-	usage
-	exit
-elif echo "$ext" | grep -qE "\s+."
+if echo "$ext" | grep -qE "\s+."
 then
 	echo "Error: spaces found in file extension (invalid)" >&2
 	exit 1
 fi
 
+[ -z "$src" ] && src=.
+
 set -e
+
+#rm -f namelists.f90 namnul.txt
 
 tmpdir=$(mktemp -d tmpXXX)
 trap '[ $keep -eq 0 ] && rm -r $tmpdir' EXIT
 
-rm -f namelists.f90 namnul.txt
+echo "tmpdir is '$tmpdir'"
 
 if [ $files -eq 1 ]
 then
-	echo "Looking for local files with namelist declaration"
-	grep -iErl '^\s*namelist */' > $tmpdir/namfiles.lst
+	echo "Looking for files in '$src' (file mode)"
+	grep -iErl '^\s*namelist */' $src > $tmpdir/namfiles.lst || true
+
+	[ $verbose -eq 1 ] &&
+		echo "$(wc -l $tmpdir/namfiles.lst | awk '{print $1}') files match"
 fi
 
 if [ -n "$ext" ]
 then
-	echo "Looking for local files with extension '*.$ext'"
+	echo "Looking for files with extensions '$ext' in '$src' (dir mode)"
+	# list files, but write their dir
 	# mindepth avoids current dir '.', as sed would make it a blank pattern for grep
-	find -mindepth 2 -type f -name \*.$ext -printf "%h/\n" | sed -re 's:^\./::' | \
-		sort -u > $tmpdir/namdir.lst
+	for e in $(echo $ext | tr ':' '\n' | xargs)
+	do
+		find $src -type f -name \*.$e -printf "%h/\n" | sed -re 's:^\./::'
+	done | sort -u | grep -vE '^ *$' > $tmpdir/namdir.lst || true
 
-	if [ -s $tmpdir/namfiles.lst ]
+	[ $verbose -eq 1 ] && echo "$(wc -l $tmpdir/namdir.lst | awk '{print $1}') dirs match"
+
+	if [ -s $tmpdir/namfiles.lst -a -s $tmpdir/namdir.lst ]
 	then
-		grep -vf $tmpdir/namdir.lst $tmpdir/namfiles.lst > $tmpdir/namfiles.tmp
+		[ $verbose -eq 1 ] && echo "Filter out dirs: $(cat $tmpdir/namdir.lst | xargs)"
+		grep -vf $tmpdir/namdir.lst $tmpdir/namfiles.lst > $tmpdir/namfiles.tmp || true
 		mv $tmpdir/namfiles.tmp $tmpdir/namfiles.lst
 	fi
-fi
 
-if [ -s $tmpdir/namdir.lst ]
-then
-	echo "Rewrite $(wc -l $tmpdir/namdir.lst) Fortran dirs"
-	while read dd
-	do
-		mkdir -p $tmpdir/$dd
-		rewrite.sh -i $dd -o $tmpdir/$dd -ext "$ext" -tabs 0 >> $tmpdir/rewrite.log
-		# only 'namelist' (not guaranteed...)
-		grep -ihE '^\s*namelist\s*/\s*\w+\s*/' $tmpdir/$dd/*.$ext | \
-			sed -re 's: *::g' -e 's:!.*::'
-	done < $tmpdir/namdir.lst > $tmpdir/nam.f90
+	if [ -s direxclude ]
+	then
+		grep -vf direxclude $tmpdir/namdir.lst  > $tmpdir/namdir.tmp
+		mv $tmpdir/namdir.tmp $tmpdir/namdir.lst
+	fi
+
+	if [ -s $tmpdir/namdir.lst ]
+	then
+		rext=$(echo $ext | sed -re 's/(^|:)\.//g' -e 's:([^\])\.:\1\\.:g')
+		echo "Rewrite $(wc -l $tmpdir/namdir.lst | awk '{print $1}') Fortran dirs"
+		while read dd
+		do
+			[ $verbose -eq 1 ] && echo ". rewrite '$dd'"
+			mkdir -p $tmpdir/$dd
+			rewrite.sh -i $dd -o $tmpdir/$dd -ext "$rext" -tabs 0 >> $tmpdir/rewrite.log
+
+			# only 'namelist' (not guaranteed...)
+			for e in $(echo $ext | tr ':' '\n' | xargs)
+			do
+				ls -1 $tmpdir/$dd/ | grep -qE "\w\.$e$" || continue
+
+				grep -ihE '^\s*namelist\s*/\s*\w+\s*/' $tmpdir/$dd/*.$e | \
+					sed -re 's: *::g' -e 's:!.*::'
+			done >> $tmpdir/nam.f90
+		done < $tmpdir/namdir.lst
+	fi
 fi
 
 if [ -s $tmpdir/namfiles.lst ]
 then
-	echo "Rewrite $(wc -l $tmpdir/namfiles.lst) Fortran files"
+	echo "Rewrite $(wc -l $tmpdir/namfiles.lst | awk '{print $1}') Fortran files"
 	mkdir -p $tmpdir/namfiles
 	while read ff
 	do
+		[ $verbose -eq 1 ] && echo ". rewrite $ff"
 		rewrite.sh -i $ff -o $tmpdir/namfiles -tabs 0 >> $tmpdir/rewrite.log
 		# only 'namelist' (not guaranteed...)
 	done < $tmpdir/namfiles.lst

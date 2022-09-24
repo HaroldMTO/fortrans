@@ -50,5 +50,9 @@ then
 	exit 1
 fi
 
+set -e
+
+type R >/dev/null 2>&1 || module load -s intel R >/dev/null 2>&1
+
 echo "$*" | grep -qE ' -move' && move=TRUE || move=FALSE
 R --slave -f $fortrans/namdiff.R --args ficold=$1 ficnew=$2 move=$move
