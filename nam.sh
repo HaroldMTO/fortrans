@@ -26,6 +26,7 @@ file. Note: namelist names and variables are sorted out.
 Details:
 	Extension(s) for file search is considered as \*.[EXT] (pattern in find).
 	EXT is a list of colon (':') separated file extensions. Default is 'F90:f90:f'.
+	File extension patterns are shell globs, matched as is and not REGEXPs.
 	Files are searched following extension(s) in EXT recursively from path SRC (find).
 	Files targetted by EXT (default or user supplied) are assumed to all be Fortran code \
 files.
@@ -51,7 +52,7 @@ then
 fi
 
 src=""
-ext="F90"
+ext="F90:f90:F"
 files=1
 verbose=0
 keep=0
@@ -117,7 +118,7 @@ then
 	echo "Looking for files with extensions '$ext' in '$src' (dir mode)"
 	# list files, but write their dir
 	# mindepth avoids current dir '.', as sed would make it a blank pattern for grep
-	for e in $(echo $ext | tr ':' '\n' | xargs)
+	for e in $(echo $ext | tr ':' ' ')
 	do
 		find $src -type f -name \*.$e -printf "%h/\n" | sed -re 's:^\./::'
 	done | sort -u | grep -vE '^ *$' > $tmpdir/namdir.lst || true
@@ -139,16 +140,16 @@ then
 
 	if [ -s $tmpdir/namdir.lst ]
 	then
-		rext=$(echo $ext | sed -re 's/(^|:)\.//g' -e 's:([^\])\.:\1\\.:g')
-		echo "Rewrite $(wc -l $tmpdir/namdir.lst | awk '{print $1}') Fortran dirs"
+		rext=$(echo $ext | sed -re 's/(^|:)\./\1/g' -e 's:([^\])\.:\1\\.:g')
+		echo "Rewrite $(wc -l $tmpdir/namdir.lst | awk '{print $1}') Fortran dirs, extensions $rext"
 		while read dd
 		do
 			[ $verbose -eq 1 ] && echo ". rewrite '$dd'"
 			mkdir -p $tmpdir/$dd
-			rewrite.sh -i $dd -o $tmpdir/$dd -ext "$rext" -tabs 0 >> $tmpdir/rewrite.log
+			rewrite.sh -i $dd -o $tmpdir/$dd -ext "$ext" -tabs 0 >> $tmpdir/rewrite.log
 
 			# only 'namelist' (not guaranteed...)
-			for e in $(echo $ext | tr ':' '\n' | xargs)
+			for e in $(echo $rext | tr ':' ' ')
 			do
 				ls -1 $tmpdir/$dd/ | grep -qE "\w\.$e$" || continue
 
