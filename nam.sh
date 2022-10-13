@@ -181,7 +181,7 @@ then
 	exit
 fi
 
-echo "Ordering variables in $(wc -l $tmpdir/nam.f90) namelists"
+echo "Ordering variables in $(wc -l $tmpdir/nam.f90 | awk '{print $1}') namelists"
 # sort, without -u
 while read nam
 do
@@ -189,14 +189,16 @@ do
 	vars=$(echo $nam | sed -re 's:^.+/.+/::' | tr ',' '\n' | sort | xargs | \
 		tr ' ' ',')
 	echo "$pre$vars"
-done < $tmpdir/nam.f90 | sort > namelists.f90
+done < $tmpdir/nam.f90 | sort > $tmpdir/namelists.f90
 
 echo "Writing default namelist, ie 'empty namelist' (namnul.txt)"
-sed -re 's:^namelist/(\w+)/.+:\&\U\1/:' namelists.f90 > $tmpdir/namnul.txt
+sed -re 's:^namelist/(\w+)/.+:\&\U\1/:' $tmpdir/namelists.f90 > $tmpdir/namnul.txt
 
-echo ". nb of namelists : $(wc -l $tmpdir/namnul.txt)"
+# uniq and sort (again)
+uniq $tmpdir/namelists.f90 > namelists.f90
+sort -u $tmpdir/namnul.txt > namnul.txt
+echo ". nb of namelists : $(wc -l namnul.txt | awk '{print $1}')"
 
-uniq $tmpdir/namnul.txt > namnul.txt
 if [ $(cat namnul.txt | wc -l) -ne $(cat $tmpdir/namnul.txt | wc -l) ]
 then
 	echo "Warning: duplicated namelists exist:" >&2
