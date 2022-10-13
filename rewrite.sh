@@ -17,7 +17,7 @@ Syntaxe :
 Arguments :
 	DIRIN : fichier ou répertoire de fichiers Fortran 90
 	DIROUT : fichier ou répertoire de sortie, peuplé en miroir de DIRIN
-	EXT : extension de fichier Fortran
+	EXT : liste d'extensions de fichier Fortran (séparées par ':')
 	TABS : 'taille' des tabulations (3 par défaut)
 	WIDTH : taille maximale des lignes Fortran en sortie (90 par défaut)
 	-nolower : ne pas minisculiser les instructions Fortran
@@ -34,14 +34,14 @@ indépendamment l'un de l'autre.
 
 	Si DIRIN est un répertoire, tous les fichiers Fortran reconnus sous \
 DIRIN seront traités. Si DIRIN est un fichier, ce fichier sera traité, quelle \
-que soit l'extension.
+que soit son extension.
 
 	Si DIROUT est un répertoire existant, il aura le même contenu que DIRIN, \
 qu'il soit fichier ou répertoire. Sinon, DIROUT sera un fichier et contiendra \
 le ou les fichiers de DIRIN, produits et éventuellement concaténés dans DIROUT.
 
-	Si une extension est fournie, elle sera traitée et remplace les formats \
-Fortran par défaut (alors non traités).
+	Si une liste d'extensions est fournie, elle sera traitée et remplace les \
+formats Fortran par défaut (alors non traités).
 
 	Par défaut, les lignes Fortran sont réalignées par des tabulations de \
 taille 3 et redimensionnées à 90 caractères. Une taille de tabulation \
@@ -90,7 +90,7 @@ do
 			tree=0
 			;;
 		-ext)
-			ext=$(echo $2 | sed -re 's:^\.::' -e 's:([^\])\.:\1\\.:g')
+			ext=$(echo $2 | sed -re 's/(^|:)\./\1/g')
 			shift
 			;;
 		-width)
@@ -157,7 +157,7 @@ dirout=$(echo $dirout | sed -re 's:/+$::')
 
 if [ -f $dirin ]
 then
-	echo "Total $dirin : 1 fichier Fortran 90 Ã  traiter"
+	echo "Fichier $dirin Fortran 90 Ã  traiter"
 	R --slave -f $fortrans/rewrite.R --args ficin=$dirin ficout="$dirout" \
 		opt="$opt" width=$width tabs=$tabs lower=$lower verbose=$verbose \
 		force=$force
@@ -168,7 +168,13 @@ then
 
 	if [ -n "$ext" ]
 	then
-		find $dirin -type f -name \*.$ext > $tmp
+		for e in $(echo $ext | tr ':' ' ')
+		do
+			find $dirin -type f -name \*.$e
+		done > $tmp
+
+		# change '.' to '\.' (glob to REGEXP)
+		ext=$(echo $ext | sed -re 's:([^\])\.:\1\\.:g')
 	else
 		find $dirin -type f -name \*.[fF]90 > $tmp
 		find $dirin -type f -name \*.F >> $tmp
@@ -176,7 +182,7 @@ then
 	fi
 
 	echo "Total $dirin : $(wc -l $tmp | awk '{print $1}') fichiers Fortran 90 \
- Ã  traiter"
+ Ã  traiter, extensions '$ext'"
 	sed -re 's:(.+)/.+:\1:' $tmp | sort -u > $tmpdd
 
 	if [ ! -d $dirout ]

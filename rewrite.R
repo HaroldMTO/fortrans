@@ -755,7 +755,10 @@ verbose = FALSE
 if (! is.null(cargs$verbose)) verbose = as.logical(cargs$verbose)
 
 if (file.info(cargs$ficin)$isdir) {
-	if (nchar(cargs$ext)) ext = sprintf("\\.%s$",cargs$ext)
+	# add '\\.' to any extension, made as a REGEXP
+	if (! "ext" %in% names(cargs) || ! nzchar(cargs$ext)) stop("option 'ext' must be passed")
+
+	ext = sprintf("(\\.%s)$",gsub(":","|\\\\.",cargs$ext))
 	ficin = dir(cargs$ficin,pattern=ext,full.names=TRUE)
 } else {
 	ficin = cargs$ficin
