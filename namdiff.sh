@@ -40,7 +40,7 @@ ficnew=""
 move=FALSE
 help=0
 
-if [ $# -eq 0 ] || echo $* | grep -q ' -h'
+if [ $# -eq 0 ] || echo " $*" | grep -q ' -h'
 then
 	usage
 	exit

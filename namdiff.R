@@ -49,21 +49,29 @@ if (as.logical(cargs$move)) {
 			inew = sapply(namnew,function(x) any(x==v))
 			if (length(which(inew)) > 1) {
 				message("--> variable ",v," in several new blocks (not moved): ",
-					paste(nomsnew[inew],collapse=" "),"\n")
+					paste(nomsnew[inew],collapse=" "))
 			} else if (length(which(iold)) > 1) {
 				message("--> variable ",v," in several old blocks (not moved): ",
-					paste(nomsold[iold],collapse=" "),"\n")
+					paste(nomsold[iold],collapse=" "))
 			} else {
 				varsmv = c(varsmv,v)
-				sdep = sprintf("\t%s=@%s",v,nomsold[iold])
-				snam[i] = sprintf("%s\n%s",snam[i],paste(sdep,collapse="\n"))
-				iold = which(iold)
-				namold[[iold]] = namold[[iold]][namold[[iold]] != v]
+				sarr = sprintf("\t%s=@%s",v,nomsnew[inew])
+				j = match(nomsold[iold],nomsnew)
+				if (is.na(j)) {
+					cat("--> block",nomsold[iold],"removed\n")
+					j = length(nomsnew)+1
+					nomsnew[j] = nomsold[iold]
+					snam[j] = sprintf("&%s\n%s",nomsold[iold],sarr)
+				} else {
+					snam[j] = sprintf("%s\n%s",snam[j],paste(sarr,collapse="\n"))
+					k = which(iold)
+					namold[[k]] = namold[[k]][namold[[k]] != v]
+				}
 			}
 		}
 
 		if (length(varsmv) > 0) {
-			cat("! vars moved to",nomsnew[i],":",
+			cat("! vars moved from",nomsnew[i],":",
 				paste(varsnew[varsnew %in% varsmv]),"\n")
 			namnew[[i]] = namnew[[i]][! namnew[[i]] %in% varsmv]
 		}
