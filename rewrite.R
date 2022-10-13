@@ -90,6 +90,7 @@ inst = sprintf("((^|\n)([^'\"\n!&]+|'([^']+|'')*'|\"([^\"]+|\"\")*\")+)%s",cont2
 
 mergecont = function(texte)
 {
+	n = 0
 	repeat {
 		ire = regexec(inst,texte)
 		if (ire[[1]][1] < 0) break
@@ -97,6 +98,12 @@ mergecont = function(texte)
 		s = regmatches(texte,ire)[[1]]
 
 		texte = sub(s[1],s[2],texte,fixed=TRUE)
+		if (n == 1000) {
+			warning("fusion lignes continuees arretee (> 1000 fusions)")
+			return(texte)
+		}
+
+		n = n+1
 	}
 
 	texte
