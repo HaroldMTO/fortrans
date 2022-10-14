@@ -42,8 +42,11 @@ if (length(namd) == 0) {
 
 ind1 = sapply(namd,function(x) grep(sprintf("^\\s*[&/$] *%s\\>",x),nd,ignore.case=TRUE))
 ind2 = lapply(ind1,function(i) grep(sprintf("^\\s*%s",Gnam),nd[-(1:i)],ignore.case=TRUE))
+irm = grep("! --rmblock=",nd)
+if (length(irm) > 0) namrm = unlist(strsplit(sub("! --rmblock=","",nd[irm]),","))
 
 for (ii in seq(along=fics)) {
+	cat("file:",fics[ii],"\n")
 	nn = readLines(fics[ii])
 	nn = grep("^ *$",nn,invert=TRUE,value=TRUE)
 
@@ -147,6 +150,25 @@ for (ii in seq(along=fics)) {
 					# better insert/cut line in nn[inew/iold] than insert/cut line
 					nn[iold+ind-1] = sub(reold,"",nn[iold+ind-1],ignore.case=TRUE)
 				}
+			}
+		}
+
+		if (length(namrm) > 0) {
+			for (i in seq(along=namrm)) {
+				fcat(". removing block",namrm[i],"\n")
+				il1 = grep(sprintf("^\\s*[&/$] *%s",namrm[i]),nn,ignore.case=TRUE)
+				if (length(il1) == 0) {
+					fcat2("--> block not present\n")
+					next
+				}
+
+				il2 = grep(sprintf("^\\s*%s",Gnam),nn[-(1:il1)],ignore.case=TRUE)
+				if (length(il2) == 0 || il2[1] == 1) {
+					nn = nn[-il1]
+					next
+				}
+
+				nn = nn[-(il1:(il1+il2[1]-1))]
 			}
 		}
 	}

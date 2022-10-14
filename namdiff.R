@@ -6,7 +6,7 @@ getnams = function(file)
 		nams[[i]] = strsplit(nams[[i]][-(1:2)],",")[[1]]
 		ind = which(duplicated(nams[[i]]))
 		if (length(ind) > 0) {
-			message("--> duplicated variables in ",names(nams)[i],"/",file,": ",
+			message("--> duplicated variables in ",file,"@",names(nams)[i],": ",
 				paste(nams[[i]][ind]," "))
 			nams[[i]] = unique(sort(nams[[i]]))
 		}
@@ -58,7 +58,6 @@ if (as.logical(cargs$move)) {
 				sarr = sprintf("\t%s=@%s",v,nomsnew[inew])
 				j = match(nomsold[iold],nomsnew)
 				if (is.na(j)) {
-					cat("--> block",nomsold[iold],"removed\n")
 					j = length(nomsnew)+1
 					nomsnew[j] = nomsold[iold]
 					snam[j] = sprintf("&%s\n%s",nomsold[iold],sarr)
@@ -92,6 +91,8 @@ for (i in which(! is.na(ind))) {
 		snam[i] = sprintf("%s\n%s",snam[i],paste(sadd,collapse="\n"))
 	}
 
+	if (regexpr("\n",snam[i]) < 0) next
+
 	snam[i] = sprintf("%s\n/\n",snam[i])
 	cat(snam[i])
 }
@@ -103,6 +104,8 @@ for (i in which(is.na(ind))) {
 		sadd = sprintf("\t%s=++",varsnew)
 		snam[i] = sprintf("%s\n%s",snam[i],paste(sadd,collapse="\n"))
 	}
+
+	if (regexpr("\n",snam[i]) < 0) next
 
 	snam[i] = sprintf("%s\n/\n",snam[i])
 	cat(snam[i])
