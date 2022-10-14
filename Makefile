@@ -14,6 +14,7 @@ install:
 	make $B/rewrite.sh
 	make $B/namdiff.sh
 	make $B/nam.sh
+	make $B/namapply.sh
 	make $B/gdiff.sh
 	make $B/varenv.sh
 	if git status >/dev/null 2>&1; then \
@@ -23,9 +24,8 @@ install:
 
 fortrans:
 	mkdir -p $P
-	cp -uv re_to90.txt rename.txt $P
+	cp -uv re_to90.txt rename.txt namdiff.R namapply.R $P
 	sed -re "s:fortrans *=.+:fortrans = \"$P\":" rewrite.R > $P/rewrite.R
-	sed -re "s:fortrans *=.+:fortrans = \"$P\":" namdiff.R > $P/namdiff.R
 
 $B/rewrite.sh: rewrite.sh
 	sed -re "s:fortrans=.+:fortrans=$P:" rewrite.sh | \
@@ -38,6 +38,10 @@ $B/namdiff.sh: namdiff.sh
 
 $B/nam.sh: nam.sh
 	cp -uv nam.sh $B
+
+$B/namapply.sh: namapply.sh
+	sed -re "s:fortrans=.+:fortrans=$P:" namapply.sh > $B/namapply.sh
+	chmod a+x $B/namapply.sh
 
 $B/gdiff.sh: gdiff.sh
 	cp -uv gdiff.sh $B

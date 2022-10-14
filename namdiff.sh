@@ -22,13 +22,15 @@ Details:
 'old' and 'new' namelist files. If moving variables is authorized, no moving \
 is done if variable is duplicated (ie present in several namelists) in any of \
 'old' or 'new' file.
+	A move instruction is marked in the origin block with value '@namblock' where \
+namblock is the name of the destination block.
 
 Exit status:
 	Non 0 in case of error
 	0 if not
 
 Dependencies:
-	None
+	R software
 
 Author:
 	H Petithomme, Meteo France - DR/GMAP/ALGO
