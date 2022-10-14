@@ -76,7 +76,7 @@ for (ii in seq(along=fics)) {
 			iold = grep(sprintf("^\\s*[/&] *%s\\>",namd[i]),nn,ignore.case=TRUE)
 			if (length(iold) == 0) {
 				fcat2("--> adding namelist block",namd[i],"(empty)\n")
-				nn[length(nn)+1] = sprintf(" &%s/",namd[i])
+				nn[length(nn)+1] = sprintf(" &%s\n /",toupper(namd[i]))
 				iold = length(nn)
 			}
 
@@ -96,7 +96,7 @@ for (ii in seq(along=fics)) {
 			# in namelist file, variables in blocks can be on the same line, and even split
 			# over several lines
 			re = "^\\s*([&/$] *%s)?(.+,)*%s(\\([0-9]+\\))? *= *([^=,]+?)( *,.+)? *,? */? *$"
-			re = sprintf(re,namd[i],var)
+			re = sprintf(re,toupper(namd[i]),var)
 			ind = grep(re,nn[iold:(iold+jl2[1]-1)],ignore.case=TRUE)
 
 			if (isnam) {
@@ -127,7 +127,7 @@ for (ii in seq(along=fics)) {
 				if (length(ind) > 0) {
 					fcat("--> variable",var,"already present: no replacement\n")
 				} else if (val != "++") {
-					reold = sprintf("^(\\s*[&/$] *%s\\>)",namd[i])
+					reold = sprintf("^(\\s*[&/$] *%s\\>)",toupper(namd[i]))
 					s = sprintf("\\1\n%s%s=%s,",Gtab,var,val)
 					nn[iold] = sub(reold,s,nn[iold],ignore.case=TRUE)
 				}
