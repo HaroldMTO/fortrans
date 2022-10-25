@@ -79,7 +79,7 @@ for (ii in seq(along=fics)) {
 			iold = grep(sprintf("^\\s*[/&] *%s\\>",namd[i]),nn,ignore.case=TRUE)
 			if (length(iold) == 0) {
 				fcat2("--> adding namelist block",namd[i],"(empty)\n")
-				nn[length(nn)+1] = sprintf(" &%s\n /",toupper(namd[i]))
+				nn[length(nn)+1] = sprintf(" &%s/",toupper(namd[i]))
 				iold = length(nn)
 			}
 
@@ -111,7 +111,7 @@ for (ii in seq(along=fics)) {
 					inew = grep(renew,nn,ignore.case=TRUE)
 					if (length(inew) == 0) {
 						fcat2("--> adding namelist block (from move)",namd[i],"(empty)\n")
-						nn[length(nn)+1] = sprintf(" &%s\n /",toupper(val))
+						nn[length(nn)+1] = sprintf(" &%s/",toupper(val))
 						inew = length(nn)
 					}
 
