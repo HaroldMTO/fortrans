@@ -82,6 +82,8 @@ fi
 
 set -e
 
+ls -d $ficin $delta >/dev/null
+
 type R >/dev/null 2>&1 || module load -s intel R >/dev/null 2>&1
 
 R --slave -f $fortrans/namapply.R --args ficnam=$ficin delta=$delta ficout=$ficout \

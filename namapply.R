@@ -16,7 +16,8 @@ if (file.info(cargs$ficnam)$isdir) {
 
 	fics = cargs$ficnam
 	ficout = cargs$ficout
-	if (file.info(ficout)$isdir) ficout = paste(ficout,basename(fics),sep="/")
+	if (file.exists(ficout) && file.info(ficout)$isdir)
+		ficout = paste(ficout,basename(fics),sep="/")
 }
 
 cat("Nb of files:",length(ficout),"\n")
@@ -43,6 +44,7 @@ if (length(namd) == 0) {
 ind1 = sapply(namd,function(x) grep(sprintf("^\\s*[&/$] *%s\\>",x),nd,ignore.case=TRUE))
 ind2 = lapply(ind1,function(i) grep(sprintf("^\\s*%s",Gnam),nd[-(1:i)],ignore.case=TRUE))
 irm = grep("! --rmblock=",nd)
+namrm = character()
 if (length(irm) > 0) namrm = unlist(strsplit(sub("! --rmblock=","",nd[irm]),","))
 
 for (ii in seq(along=fics)) {
@@ -55,8 +57,12 @@ for (ii in seq(along=fics)) {
 		il1 = ind1[i]
 		il2 = ind2[[i]]
 		if (length(il2) == 0) {
-			fcat2("--> last block, exit\n")
-			break
+			if (il1 == length(nd)) {
+				fcat2("--> last block, no instruction, exit\n")
+				break
+			}
+
+			il2 = length(nd)+1-il1
 		} else if (il2[1] == 1) {
 			fcat2("--> no instruction, next\n")
 			next
@@ -76,6 +82,11 @@ for (ii in seq(along=fics)) {
 				val = sub("^@","",val)
 			}
 
+			if (is.null(val)) {
+				fcat2("--> no instruction in:",nd[j],"\n")
+				next
+			}
+
 			iold = grep(sprintf("^\\s*[/&] *%s\\>",namd[i]),nn,ignore.case=TRUE)
 			if (length(iold) == 0) {
 				fcat2("--> adding namelist block",namd[i],"(empty)\n")
@@ -85,16 +96,11 @@ for (ii in seq(along=fics)) {
 
 			stopifnot(length(iold) == 1)
 
-			if (is.null(val)) {
-				fcat2("--> no instruction in:",nd[j],"\n")
-				next
-			}
-
 			var = sub(re,"\\2\\3",nd[j],ignore.case=TRUE)
 			fcat(". var/val:",var,"/",val,"\n")
 
 			jl2 = grep(sprintf("^\\s*%s",Gnam),nn[-(1:iold)],ignore.case=TRUE)
-			if (length(jl2) == 0) jl2 = 1
+			if (length(jl2) == 0) jl2 = length(nn)-iold+1
 
 			# in namelist file, variables in blocks can be on the same line, and even split
 			# over several lines
