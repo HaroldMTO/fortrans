@@ -21,10 +21,10 @@
 
 # suppression commentaires Fortran 90 (lignes entières non vides)
 (^|\n)(?: *!+\n+)+;\1\n
-(^|\n)(?: *!(?! *((dec|dir|pgi)\$|\$omp|\$!))[^\n]+)+;;TRUE
+(^|\n)(?: *!(?! *((dec|dir|pgi)\$|\$omp|\$acc|\$!))[^\n]+)+;;TRUE
 
 # suppression commentaires Fortran 90 (fin de ligne)
-(^|\n)((?:[^\n!"']+|\"[^"]+\"|\'[^']+\')+?) *!+[^\n]*;\1\2
+(^|\n) *((?:[^\n!"' ]+[^\n!"']*|\"[^"]+\"|\'[^']+\')+?) *!+[^\n]*;\1\2
 
 # suppression caractères d'ornement (normalement, que dans les chaines)
  *[?@\~#]{2,} *;
@@ -32,7 +32,7 @@
  *(\.{4,}|!{4,}) *;
 
 # concaténation des lignes continuées f77 (sur fin de ligne), F90 dans rewrite.R
-#&(?: *![^\n]*)?\n+ *&?(?! *! *((dec|dir|pgi)\$|\$omp)) *;;TRUE
+#&(?: *![^\n]*)?\n+ *&?(?! *! *((dec|dir|pgi)\$|\$omp|\$acc)) *;;TRUE
 \n {5}[1-9&*+];
 
 # suppression d'espaces avant/après virgule, affectations et opérateurs maths

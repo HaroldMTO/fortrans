@@ -242,7 +242,7 @@ orderlocal = function(flines)
 
 	# suppression des lignes vides ou de commentaires
 	i0 = indi[indl[which(diff(indi[indl]) == 2)]+1]
-	if (any(regexpr("^ *! *((dec|dir|pgi)\\$|\\$omp|ocl )",flines[i0],
+	if (any(regexpr("^ *! *((dec|dir|pgi)\\$|\\$omp|\\$acc|ocl) ",flines[i0],
 		ignore.case=TRUE) > 0)) {
 		return(flines)
 	}
