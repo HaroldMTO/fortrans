@@ -1,6 +1,6 @@
 #!/bin/sh
 
-varRE="(HOME|USER|LOGNAME|DISPLAY|LANG|HOST|PATH|TERM|SHELL|LC_\w+|(SLURM|PBS)_\w+)"
+varRE="HOME|USER|LOGNAME|DISPLAY|LANG|HOST|ARCH|PATH|TERM|SHELL|(LC|SLURM|PBS)_\w+"
 
 usage()
 {
@@ -13,14 +13,12 @@ Synopsis:
 	$(basename $0) PATH... [-h]
 
 Arguments:
-	PATH...: one or more files or directory to search
+	PATH...: one or more files or directory to search for
 	-h: displays help and terminates normally
 
 Details:
 	Files are searched recursively from local directory (grep -r .).
-
-	Searched files are restricted to these extensions: .c, .cc, .f90 and .F90.
-
+	Files searched are restricted to extensions c, cc, f90 and F90.
 	Listed environment variables exclude those matching (as words):
 	'$varRE'
 
@@ -29,25 +27,24 @@ Exit status:
 	0 if not
 
 Author:
-	H Petithomme, Meteo France - DR/GMAP/ALGO
+	H Petithomme, Meteo France - DESR/GMAP/ALGO
 "
 }
 
-if [ $# -eq 0 ] || echo $* | grep -q '\-h'
+if [ $# -eq 0 ] || echo " $*" | grep -q '\-h\>'
 then
 	usage
 	exit
+elif echo " $*" | grep -q ' \-'
+then
+	echo "Error: paths starting with '-' are not authorized" >&2
+	exit 1
 fi
 
-set -e
+{
+	grep --include=*.[fF]90 -irE "^\s*[^\!]*call +get_?env\w*\( *([\'\"])\w+\1" $* |\
+		sed -re 's:.*get_?env\w*\( *\W?(\w+).+:^\1=:i'
 
-temp=$(mktemp)
-
-grep --include=*.[fF]90 -irE "^\s*[^\!]*call +get_?env\w*\( *([\'\"])\w+\1" $* |\
-	sed -re 's:.*get_?env\w*\( *\W?(\w+).+:^\1=:i' > $temp
-
-grep --include=*.c  --include=*.cc -irE '\<getenv\w*\( *"\w+"' $* | \
-	grep -vE '/\*.*\<getenv' | sed -re 's:.*getenv\w*\( *"(\w+)".+:^\1=:i'>>$temp
-
-sort -u $temp | grep -vwE "$varRE"
-rm $temp
+	grep --include=*.c  --include=*.cc -irE '\<getenv\w*\( *"\w+"' $* | \
+		grep -vE '/\*.*\<getenv' | sed -re 's:.*getenv\w*\( *"(\w+)".+:^\1=:i'
+} | sort -u | grep -vwE "$varRE"
