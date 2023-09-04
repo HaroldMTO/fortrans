@@ -54,15 +54,19 @@ if (as.logical(cargs$move)) {
 				message("--> variable ",v," in several old blocks (not moved): ",
 					paste(nomsold[iold],collapse=" "))
 			} else {
+				# v moves from old to new: in namold, add "v=@namnew"
 				varsmv = c(varsmv,v)
-				sarr = sprintf("\t%s=@%s",v,nomsnew[inew])
+				sarr = sprintf("\t%s=@%s",v,nomsnew[i])
 				j = match(nomsold[iold],nomsnew)
 				if (is.na(j)) {
+					# old reference block is not in new: add it to new, add sarr in old
 					j = length(nomsnew)+1
 					nomsnew[j] = nomsold[iold]
 					snam[j] = sprintf("&%s\n%s",nomsold[iold],sarr)
 				} else {
-					snam[j] = sprintf("%s\n%s",snam[j],paste(sarr,collapse="\n"))
+					# old block is in new: delete v in old (if present)
+					snam[j] = sprintf("%s\n%s",snam[j],sarr)
+					# delete variable in old block (before adding again by way of snam)
 					k = which(iold)
 					namold[[k]] = namold[[k]][namold[[k]] != v]
 				}
@@ -70,13 +74,14 @@ if (as.logical(cargs$move)) {
 		}
 
 		if (length(varsmv) > 0) {
-			cat("! vars moved from",nomsnew[i],":",
+			cat("! vars moved to",nomsnew[i],":",
 				paste(varsnew[varsnew %in% varsmv]),"\n")
 			namnew[[i]] = namnew[[i]][! namnew[[i]] %in% varsmv]
 		}
 	}
 }
 
+# namelist blocks that already exist in old
 for (i in which(! is.na(ind))) {
 	varsnew = namnew[[i]]
 	varsold = namold[[ind[i]]]
@@ -97,6 +102,7 @@ for (i in which(! is.na(ind))) {
 	cat(snam[i])
 }
 
+# fully new namelist blocks
 for (i in which(is.na(ind))) {
 	varsnew = namnew[[i]]
 
