@@ -53,7 +53,6 @@ for (ii in seq(along=fics)) {
 	nn = grep("^ *$",nn,invert=TRUE,value=TRUE)
 
 	for (i in seq(along=namd)) {
-		fcat(". namelist block:",namd[i],"\n")
 		il1 = ind1[i]
 		il2 = ind2[[i]]
 		if (length(il2) == 0) {
@@ -68,6 +67,7 @@ for (ii in seq(along=fics)) {
 			next
 		}
 
+		fcat2(". namelist block with diff:",namd[i],"\n")
 		il2 = grep(sprintf("^\\s*(%s)? *(%s *=.+)?/? *$",Gnam,Gvar),nd[il1:(il1+il2[1]-1)])
 		stopifnot(length(il2) > 0)
 
@@ -87,6 +87,7 @@ for (ii in seq(along=fics)) {
 				next
 			}
 
+			# looking for this block in old file
 			iold = grep(sprintf("^\\s*[/&] *%s\\>",namd[i]),nn,ignore.case=TRUE)
 			if (length(iold) == 0) {
 				fcat2("--> adding namelist block",namd[i],"(empty)\n")
@@ -97,7 +98,7 @@ for (ii in seq(along=fics)) {
 			stopifnot(length(iold) == 1)
 
 			var = sub(re,"\\2\\3",nd[j],ignore.case=TRUE)
-			fcat(". var/val:",var,"/",val,"\n")
+			fcat2(". var/val:",var,"/",val,"\n")
 
 			jl2 = grep(sprintf("^\\s*%s",Gnam),nn[-(1:iold)],ignore.case=TRUE)
 			if (length(jl2) == 0) jl2 = length(nn)-iold+1
@@ -109,10 +110,10 @@ for (ii in seq(along=fics)) {
 			ind = grep(re,nn[iold:(iold+jl2[1]-1)],ignore.case=TRUE)
 
 			if (isnam) {
-				fcat(".. moving var",var,"from",namd[i],"to",val,"\n")
 				if (length(ind) == 0) {
 					fcat2("--> variable",var,"absent: no movement\n")
 				} else {
+					fcat(".. moving var",var,"from",namd[i],"to",val,"\n")
 					renew = sprintf("^(\\s*[&/$] *%s\\>)",val)
 					inew = grep(renew,nn,ignore.case=TRUE)
 					if (length(inew) == 0) {
@@ -122,7 +123,7 @@ for (ii in seq(along=fics)) {
 					}
 
 					if (length(ind) > 1) {
-						fcat2("--> vector variable: processing whole lines\n")
+						fcat2("--> variable",var,": vector, processing whole lines\n")
 						s = paste(nn[iold+ind-1],collapse="\n")
 						nn[inew] = sub(renew,sprintf("\\1\n%s",s),nn[inew],ignore.case=TRUE)
 					} else {
@@ -132,10 +133,10 @@ for (ii in seq(along=fics)) {
 					}
 				}
 			} else if (val != "--") {
-				fcat(".. adding variable",var,"=",val,"in nam",namd[i],"\n")
 				if (length(ind) > 0) {
-					fcat("--> variable",var,"already present: no replacement\n")
+					fcat2("--> variable",var,"already present: no replacement\n")
 				} else if (val != "++") {
+					fcat(".. adding variable",var,"=",val,"in nam",namd[i],"\n")
 					reold = sprintf("^(\\s*[&/$] *%s\\>)",toupper(namd[i]))
 					s = sprintf("\\1\n%s%s=%s,",Gtab,var,val)
 					nn[iold] = sub(reold,s,nn[iold],ignore.case=TRUE)
@@ -143,13 +144,13 @@ for (ii in seq(along=fics)) {
 			}
 
 			if (val == "--" || isnam) {
-				fcat(".. deleting variable",var,"in nam",namd[i],"\n")
 				if (length(ind) == 0) {
-					fcat("--> variable",var,"absent: no delete\n")
+					fcat2("--> variable",var,"absent: no delete\n")
 				} else if (length(ind) > 1) {
-					fcat2("--> vector variable: processing whole lines\n")
+					fcat2("--> variable",var,": vector, processing whole lines\n")
 					nn = nn[-(iold+ind-1)]
 				} else {
+					if (! isnam) fcat(".. deleting variable",var,"in nam",namd[i],"\n")
 					valold = sub(re,"\\4",nn[iold+ind-1],ignore.case=TRUE)
 					reold = sprintf(" *\\<%s *= *%s *,?",var,valold)
 					# in case of merged block name and variables:
@@ -158,26 +159,28 @@ for (ii in seq(along=fics)) {
 				}
 			}
 		}
+	}
 
-		if (length(namrm) > 0) {
-			for (i in seq(along=namrm)) {
-				fcat(". removing block",namrm[i],"\n")
-				il1 = grep(sprintf("^\\s*[&/$] *%s",namrm[i]),nn,ignore.case=TRUE)
-				if (length(il1) == 0) {
-					fcat2("--> block not present\n")
-					next
-				}
-
-				il2 = grep(sprintf("^\\s*%s",Gnam),nn[-(1:il1)],ignore.case=TRUE)
-				if (length(il2) == 0 || il2[1] == 1) {
-					nn = nn[-il1]
-					next
-				}
-
-				nn = nn[-(il1:(il1+il2[1]-1))]
+	if (length(namrm) > 0) {
+		for (i in seq(along=namrm)) {
+			il1 = grep(sprintf("^\\s*[&/$] *%s",namrm[i]),nn,ignore.case=TRUE)
+			if (length(il1) == 0) {
+				fcat2("--> block",namrm[i],"not present\n")
+				next
 			}
+
+			fcat(". removing block",namrm[i],"\n")
+			il2 = grep(sprintf("^\\s*%s",Gnam),nn[-(1:il1)],ignore.case=TRUE)
+			if (length(il2) == 0 || il2[1] == 1) {
+				nn = nn[-il1]
+				next
+			}
+
+			nn = nn[-(il1:(il1+il2[1]-1))]
 		}
 	}
 
+	ind = grep(sprintf("^\\s*%s\\s*/$",Gnam),nn)
+	if (length(ind) > 0) nn = nn[-ind]
 	writeLines(nn[nzchar(nn)],ficout[ii])
 }
