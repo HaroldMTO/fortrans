@@ -144,16 +144,16 @@ then
 		echo "Rewrite $(wc -l $tmpdir/namdir.lst | awk '{print $1}') Fortran dirs, extensions $rext"
 		while read dd
 		do
-			[ $verbose -eq 1 ] && echo ". rewrite '$dd'"
-			mkdir -p $tmpdir/$dd
-			rewrite.sh -i $dd -o $tmpdir/$dd -ext "$ext" -tabs 0 >> $tmpdir/rewrite.log
+			[ $verbose -eq 1 ] && echo ". rewrite '$dd' in $tmp"
+			tmpd=$(mktemp -d $tmpdir/$(basename $dd).XXX)
+			rewrite.sh -i $dd -o $tmpd -ext "$ext" -tabs 0 >> $tmpdir/rewrite.log
 
 			# only 'namelist' (not guaranteed...)
 			for e in $(echo $rext | tr ':' ' ')
 			do
-				ls -1 $tmpdir/$dd/ | grep -qE "\w\.$e$" || continue
+				ls -1 $tmpd/ | grep -qE "\w\.$e$" || continue
 
-				grep -ihE '^\s*namelist\s*/\s*\w+\s*/' $tmpdir/$dd/*.$e | \
+				grep -ihE '^\s*namelist\s*/\s*\w+\s*/' $tmpd/*.$e | \
 					sed -re 's: *::g' -e 's:!.*::'
 			done >> $tmpdir/nam.f90
 		done < $tmpdir/namdir.lst
@@ -182,21 +182,20 @@ then
 fi
 
 echo "Ordering variables in $(wc -l $tmpdir/nam.f90 | awk '{print $1}') namelists"
-# sort, without -u
 while read nam
 do
 	pre=$(echo $nam | sed -re 's:^(.+/.+/).+:\1:')
 	vars=$(echo $nam | sed -re 's:^.+/.+/::' | tr ',' '\n' | sort | xargs | \
 		tr ' ' ',')
 	echo "$pre$vars"
-done < $tmpdir/nam.f90 | sort > $tmpdir/namelists.f90
+done < $tmpdir/nam.f90 | sort -u > $tmpdir/namelists.f90
 
 echo "Writing default namelist, ie 'empty namelist' (namnul.txt)"
 sed -re 's:^namelist/(\w+)/.+:\&\U\1/:' $tmpdir/namelists.f90 > $tmpdir/namnul.txt
 
 # uniq and sort (again)
 uniq $tmpdir/namelists.f90 > namelists.f90
-sort -u $tmpdir/namnul.txt > namnul.txt
+uniq $tmpdir/namnul.txt > namnul.txt
 echo ". nb of namelists : $(wc -l namnul.txt | awk '{print $1}')"
 
 if [ $(cat namnul.txt | wc -l) -ne $(cat $tmpdir/namnul.txt | wc -l) ]
