@@ -704,6 +704,50 @@ getalgo = function(flines)
 	strsplit(texte,split="\n+")[[1]]
 }
 
+getintfb = function(flines,fun)
+{
+	texte = paste(flines,collapse="\n")
+	texte = stripcont(texte)
+	texte = mergecont(texte)
+	for (re in lre)
+		texte = gsub(re[1],re[2],texte,ignore.case=TRUE,perl=re[3],useBytes=TRUE)
+	stopifnot(regexpr("\\t| \n",texte) < 0)
+
+	# remplacement définitif ',;' (fin protection espacement ',')
+	texte = gsub(",;",",",texte)
+	flines = strsplit(texte,"\n")[[1]]
+
+	re1 = "^\\s*(program|module|submodule *\\( *\\w+ *\\)) +\\w+"
+	if (any(regexpr(re1,flines,ignore.case=TRUE) > 0)) stop("intfb in no plain source")
+
+	re2 = sprintf("^\\s*(subroutine|((%s).*? +)?function) +%s\\>",types,fun)
+	ind = grep(re2,flines,ignore.case=TRUE)
+	if (length(ind) == 0) stop(sprintf("procedure %s not found",fun))
+	if (length(ind) > 1) warning(sprintf("several procedures %s found, use 1st one",fun))
+
+	re = "^\\s*(end +(subroutine|function)|contains)\\>"
+	inde = grep(re,flines,ignore.case=TRUE)
+	stopifnot(length(inde) > 0)
+
+	ie = inde[inde > ind[1]]
+	stopifnot(length(ie) > 0)
+
+	re3 = "^\\s*(use \\w+|implicit\\s+none)"
+	re4 = sprintf("^\\s*(%s)\\>.*,\\s*intent\\((in|out|inout)\\)",types)
+	re = paste(re2,re3,re4,sep="|")
+	fsub = flines[ind[1]:ie[1]-1]
+	indi = grep(sprintf("^\\s*(%s)",re),fsub,ignore.case=TRUE)
+	if (regexpr("^\\s*contains\\>",flines[ie[1]],ignore.case=TRUE) > 0) {
+		f = sub("^\\s*(subroutine|function)\\s+(\\w+).*","\\1",flines[ind[1]],
+			ignore.case=TRUE)
+		endf = paste("END",f)
+	} else {
+		endf = flines[ie[1]]
+	}
+
+	c("interface",fsub[indi],endf,"end interface")
+}
+
 getcall = function(flines)
 {
 	flines = rewrite(flines)
@@ -738,6 +782,8 @@ if (is.null(cargs$opt) || cargs$opt == "rewrite") {
 	action = getalgo
 } else if (cargs$opt == "call") {
 	action = getcall
+} else if (cargs$opt == "intfb") {
+	action = function(f) getintfb(f,cargs$fun)
 } else {
 	stop("action '",cargs$opt,"' inconnue")
 }
